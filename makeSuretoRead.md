@@ -1,0 +1,1 @@
+during creating varient make sure to make sku unique other wise will face unexpected behoavur. 

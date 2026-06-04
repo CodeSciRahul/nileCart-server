@@ -1,0 +1,31 @@
+import { Router } from "express";
+import userRoutes from "./user.route.js";
+import categoryRoutes from "./category.route.js";
+import productRoutes from "./product.route.js";
+import bannerRoutes from "./banner.route.js";
+import cartRoutes from "./cart.route.js";
+import wishlistRoutes from "./wishlist.route.js";
+import addressRoutes from "./address.route.js";
+import orderRoutes from "./order.route.js";
+import couponRoutes from "./coupon.route.js";
+import reviewRoutes from "./review.route.js";
+
+const router = Router();
+
+router.use("/auth", userRoutes);
+router.use("/users", userRoutes);
+router.use("/categories", categoryRoutes);
+router.use("/products", productRoutes);
+router.use("/banners", bannerRoutes);
+router.use("/cart", cartRoutes);
+router.use("/wishlist", wishlistRoutes);
+router.use("/addresses", addressRoutes);
+router.use("/orders", orderRoutes);
+router.use("/coupons", couponRoutes);
+router.use("/reviews", reviewRoutes);
+
+router.get("/health", (req, res) => {
+  res.json({ success: true, message: "Saavana API is running" });
+});
+
+export default router;
