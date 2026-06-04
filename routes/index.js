@@ -25,7 +25,7 @@ router.use("/coupons", couponRoutes);
 router.use("/reviews", reviewRoutes);
 
 router.get("/health", (req, res) => {
-  res.json({ success: true, message: "Saavana API is running" });
+  res.json({ success: true, message: "LightCollection API is running" });
 });
 
 export default router;

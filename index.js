@@ -23,7 +23,7 @@ app.use(cookieParser());
 
 app.use("/api", apiRoutes);
 
-app.use("/", async (req, res) => {
+app.get("/", async (req, res) => {
   res.send("Server is running...")
 })
 
