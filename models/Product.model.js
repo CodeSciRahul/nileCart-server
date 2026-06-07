@@ -16,6 +16,11 @@ const variantSchema = new mongoose.Schema(
 
 const productSchema = new mongoose.Schema(
   {
+    seller: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Seller",
+      required: true
+    },
     title: {
       type: String,
       required: true,
@@ -45,7 +50,7 @@ const productSchema = new mongoose.Schema(
     tags: [String],
     gender: {
       type: String,
-      enum: ["Women", "Men", "Unisex", "Kids"],
+      enum: ["Women", "Men"],
       default: "Women",
     },
     discountPercent: {

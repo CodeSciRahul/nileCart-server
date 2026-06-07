@@ -1,15 +1,10 @@
 import Product from "../models/Product.model.js";
 import Category from "../models/Category.model.js";
+import Seller from "../models/Seller.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendSuccess, sendError } from "../utils/apiResponse.js";
 import { formatProductCard } from "../utils/productHelpers.js";
-
-const slugify = (text) =>
-  text
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
+import { slugify } from "../utils/userHelpers.js";
 
 const buildProductFilter = async (query) => {
   const filter = { isActive: true };
@@ -23,6 +18,7 @@ const buildProductFilter = async (query) => {
     isNewArrival,
     isOnSale,
     search,
+    seller,
   } = query;
 
   if (category) {
@@ -35,6 +31,7 @@ const buildProductFilter = async (query) => {
 
   if (brand) filter.brand = brand;
   if (gender) filter.gender = gender;
+  if (seller) filter.seller = seller;
   if (isTrending === "true") filter.isTrending = true;
   if (isNewArrival === "true") filter.isNewArrival = true;
   if (isOnSale === "true") filter.isOnSale = true;
@@ -56,7 +53,7 @@ export const getProducts = asyncHandler(async (req, res) => {
 
   let products = await Product.find(filter)
     .populate("category", "name slug")
-    // .populate("brand", "name slug")
+    .populate("seller", "storeName storeSlug logo")
     .sort(sort)
     .skip(skip)
     .limit(limit);
@@ -87,6 +84,7 @@ export const getTrendingProducts = asyncHandler(async (req, res) => {
   const limit = Math.min(20, parseInt(req.query.limit, 10) || 8);
   const products = await Product.find({ isActive: true, isTrending: true })
     .populate("category", "name slug")
+    .populate("seller", "storeName storeSlug")
     .sort("-rating.average")
     .limit(limit);
 
@@ -99,7 +97,7 @@ export const getProductBySlug = asyncHandler(async (req, res) => {
     isActive: true,
   })
     .populate("category", "name slug")
-    // .populate("brand", "name slug logo");
+    .populate("seller", "storeName storeSlug logo rating");
 
   if (!product) return sendError(res, "Product not found", 404);
   sendSuccess(res, { product });
@@ -110,19 +108,100 @@ export const searchProducts = asyncHandler(async (req, res) => {
   return getProducts(req, res);
 });
 
+export const getMyProducts = asyncHandler(async (req, res) => {
+  const filter = { seller: req.seller._id };
+
+  if (req.query.isActive !== undefined) {
+    filter.isActive = req.query.isActive === "true";
+  }
+
+  const products = await Product.find(filter)
+    .populate("category", "name slug")
+    .sort("-createdAt");
+
+  sendSuccess(res, { products });
+});
+
 export const createProduct = asyncHandler(async (req, res) => {
-  const { title, category, variants, ...rest } = req.body;
+  const { title, category, variants, seller: sellerId, ...rest } = req.body;
   if (!title || !category || !variants?.length) {
     return sendError(res, "title, category, and variants are required");
+  }
+
+  let seller;
+
+  if (req.user.role === "admin") {
+    if (!sellerId) {
+      return sendError(res, "seller ID is required when creating products as admin");
+    }
+    seller = await Seller.findOne({ _id: sellerId, approvalStatus: "Approved", isActive: true });
+    if (!seller) {
+      return sendError(res, "Valid approved seller not found", 404);
+    }
+  } else {
+    seller = req.seller;
   }
 
   const product = await Product.create({
     title,
     slug: rest?.slug || slugify(title),
     category,
+    seller: seller._id,
     variants,
     ...rest,
   });
 
   sendSuccess(res, { product }, 201);
+});
+
+export const updateProduct = asyncHandler(async (req, res) => {
+  const product = await Product.findById(req.params.id);
+  if (!product) {
+    return sendError(res, "Product not found", 404);
+  }
+
+  if (req.user.role !== "admin" && String(product.seller) !== String(req.seller._id)) {
+    return sendError(res, "You can only update your own products", 403);
+  }
+
+  const blocked = ["seller", "_id", "slug"];
+  Object.keys(req.body).forEach((key) => {
+    if (!blocked.includes(key) && req.body[key] !== undefined) {
+      product[key] = req.body[key];
+    }
+  });
+
+  await product.save();
+  sendSuccess(res, { product });
+});
+
+export const deleteProduct = asyncHandler(async (req, res) => {
+  const product = await Product.findById(req.params.id);
+  if (!product) {
+    return sendError(res, "Product not found", 404);
+  }
+
+  if (req.user.role !== "admin" && String(product.seller) !== String(req.seller._id)) {
+    return sendError(res, "You can only delete your own products", 403);
+  }
+
+  product.isActive = false;
+  await product.save();
+
+  sendSuccess(res, { message: "Product deactivated" });
+});
+
+export const getProductsByStoreSlug = asyncHandler(async (req, res) => {
+  const seller = await Seller.findOne({
+    storeSlug: req.params.slug,
+    approvalStatus: "Approved",
+    isActive: true,
+  });
+
+  if (!seller) {
+    return sendError(res, "Store not found", 404);
+  }
+
+  req.query.seller = seller._id;
+  return getProducts(req, res);
 });

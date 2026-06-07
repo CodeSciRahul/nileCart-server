@@ -7,6 +7,8 @@ import Product from "../models/Product.model.js";
 import Banner from "../models/Banner.model.js";
 import Announcement from "../models/Announcement.model.js";
 import Coupon from "../models/Coupon.model.js";
+import User from "../models/User.model.js";
+import Seller from "../models/Seller.model.js";
 
 const categories = [
   { name: "Tops", slug: "tops", image: "https://img105.savana.com/v1/2e2992df39904be6be0b37fa12f49855_w360.webp", displayOrder: 1, showInNav: true },
@@ -39,8 +41,25 @@ const seed = async () => {
 
   const brand = await Brand.create({ name: "Savana", slug: "savana" });
 
+  const platformUser = await User.create({
+    email: "platform-store@lightcollection.local",
+    name: "Platform Store",
+    role: "seller",
+  });
+
+  const platformSeller = await Seller.create({
+    user: platformUser._id,
+    storeName: "LightCollection Official",
+    storeSlug: "lightcollection-official",
+    description: "Official platform store for seeded catalog products",
+    approvalStatus: "Approved",
+    isVerified: true,
+    isActive: true,
+  });
+
   const products = [
     {
+      seller: platformSeller._id,
       title: "Floral Print Mini Dress",
       slug: "floral-print-mini-dress",
       category: catMap.dresses,
@@ -54,6 +73,7 @@ const seed = async () => {
       ],
     },
     {
+      seller: platformSeller._id,
       title: "Ribbed Crop Top",
       slug: "ribbed-crop-top",
       category: catMap.tops,
@@ -65,6 +85,7 @@ const seed = async () => {
       ],
     },
     {
+      seller: platformSeller._id,
       title: "High Waist Cargo Pants",
       slug: "high-waist-cargo-pants",
       category: catMap.bottoms,
@@ -75,6 +96,7 @@ const seed = async () => {
       ],
     },
     {
+      seller: platformSeller._id,
       title: "Premium Handbag",
       slug: "premium-handbag",
       category: catMap.bags,

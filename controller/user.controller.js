@@ -1,10 +1,12 @@
 import jwt from "jsonwebtoken";
 import { initFirebaseAdmin } from "../vendor/firebase.vendor.js";
 import User from "../models/User.model.js";
+import Seller from "../models/Seller.model.js";
 import Cart from "../models/Cart.model.js";
 import Wishlist from "../models/Wishlist.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendSuccess, sendError } from "../utils/apiResponse.js";
+import { formatUserProfile } from "../utils/userHelpers.js";
 
 const issueToken = (userId) =>
   jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
@@ -31,8 +33,9 @@ const ensureUserSideCollections = async (userId) => {
   );
 };
 
+const loadSellerProfile = async (userId) => Seller.findOne({ user: userId });
+
 export const login = asyncHandler(async (req, res) => {
-  console.log("login");
   const { token } = req.body;
   if (!token) return sendError(res, "Firebase token is required");
 
@@ -58,28 +61,29 @@ export const login = asyncHandler(async (req, res) => {
       firebaseUid: decoded.uid,
       email: decoded.email || undefined,
       name: decoded.name || decoded.email?.split("@")[0],
+      role: "customer",
     });
+  }
+
+  if (!user.isActive) {
+    return sendError(res, "Account is deactivated", 403);
   }
 
   await ensureUserSideCollections(user._id);
 
+  const seller = await loadSellerProfile(user._id);
   const jwtToken = issueToken(user._id);
   setAuthCookie(res, jwtToken);
 
   sendSuccess(res, {
-    user: {
-      _id: user._id,
-      email: user.email,
-      name: user.name,
-      gender: user.gender,
-      categoryPreferences: user.categoryPreferences,
-    },
+    user: formatUserProfile(user, seller),
     token: jwtToken,
   });
 });
 
 export const getProfile = asyncHandler(async (req, res) => {
-  sendSuccess(res, { user: req.user });
+  const seller = await loadSellerProfile(req.user._id);
+  sendSuccess(res, { user: formatUserProfile(req.user, seller) });
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
@@ -99,7 +103,8 @@ export const updateProfile = asyncHandler(async (req, res) => {
   });
 
   await req.user.save();
-  sendSuccess(res, { user: req.user });
+  const seller = await loadSellerProfile(req.user._id);
+  sendSuccess(res, { user: formatUserProfile(req.user, seller) });
 });
 
 export const logout = asyncHandler(async (req, res) => {

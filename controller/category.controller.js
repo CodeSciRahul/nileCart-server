@@ -1,13 +1,7 @@
 import Category from "../models/Category.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendSuccess, sendError } from "../utils/apiResponse.js";
-
-const slugify = (text) =>
-  text
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
+import { slugify } from "../utils/userHelpers.js";
 
 export const getCategories = asyncHandler(async (req, res) => {
   const { navOnly } = req.query;
@@ -46,4 +40,38 @@ export const createCategory = asyncHandler(async (req, res) => {
   });
 
   sendSuccess(res, { category }, 201);
+});
+
+export const updateCategory = asyncHandler(async (req, res) => {
+  const category = await Category.findById(req.params.id);
+  if (!category) {
+    return sendError(res, "Category not found", 404);
+  }
+
+  const allowed = ["name", "image", "description", "parent", "displayOrder", "showInNav", "isActive"];
+
+  allowed.forEach((field) => {
+    if (req.body[field] !== undefined) {
+      category[field] = req.body[field];
+    }
+  });
+
+  if (req.body.name && !req.body.slug) {
+    category.slug = slugify(req.body.name);
+  }
+
+  await category.save();
+  sendSuccess(res, { category });
+});
+
+export const deleteCategory = asyncHandler(async (req, res) => {
+  const category = await Category.findById(req.params.id);
+  if (!category) {
+    return sendError(res, "Category not found", 404);
+  }
+
+  category.isActive = false;
+  await category.save();
+
+  sendSuccess(res, { message: "Category deactivated" });
 });

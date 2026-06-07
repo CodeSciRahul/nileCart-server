@@ -9,11 +9,15 @@ import addressRoutes from "./address.route.js";
 import orderRoutes from "./order.route.js";
 import couponRoutes from "./coupon.route.js";
 import reviewRoutes from "./review.route.js";
+import sellerRoutes from "./seller.route.js";
+import adminRoutes from "./admin.route.js";
 
 const router = Router();
 
 router.use("/auth", userRoutes);
 router.use("/users", userRoutes);
+router.use("/sellers", sellerRoutes);
+router.use("/admin", adminRoutes);
 router.use("/categories", categoryRoutes);
 router.use("/products", productRoutes);
 router.use("/banners", bannerRoutes);

@@ -11,6 +11,7 @@ import { protect } from "../middleware/auth.middleware.js";
 const router = Router();
 
 router.get("/summary", getOrderSummary);
+
 router.use(protect);
 router.post("/", placeOrder);
 router.get("/", getMyOrders);
