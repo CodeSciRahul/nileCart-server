@@ -3,15 +3,50 @@ import User from "../models/User.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendSuccess, sendError } from "../utils/apiResponse.js";
 import { slugify } from "../utils/userHelpers.js";
+import {
+  assertEmailMobileNotRegisteredAsCustomer,
+  CUSTOMER_CANNOT_BECOME_SELLER_MESSAGE,
+} from "../utils/authHelpers.js";
 
 export const applyForSeller = asyncHandler(async (req, res) => {
   if (req.user.role === "admin") {
     return sendError(res, "Admin accounts cannot apply as sellers", 400);
   }
 
-  if (req.user.role === "seller") {
-    return sendError(res, "You are already a seller", 400);
+  if (req.user.role === "customer") {
+    return sendError(res, CUSTOMER_CANNOT_BECOME_SELLER_MESSAGE, 403);
   }
+
+  if (req.user.role !== "seller") {
+    return sendError(res, "You are not eligible to apply as a seller", 403);
+  }
+
+  const { storeName, name, mobileNumber, description, tinNumber, address, bankDetails, documents, logo, banner } =
+    req.body;
+
+  if (!name?.trim()) {
+    return sendError(res, "Name is required");
+  }
+
+  if (!mobileNumber?.trim()) {
+    return sendError(res, "Mobile number is required");
+  }
+
+  const normalizedMobile = mobileNumber.trim();
+
+  const mobileTaken = await User.findOne({
+    mobileNumber: normalizedMobile,
+    _id: { $ne: req.user._id },
+  });
+  if (mobileTaken) {
+    return sendError(res, "This mobile number is already registered", 400);
+  }
+
+  await assertEmailMobileNotRegisteredAsCustomer({
+    email: req.user.email,
+    mobileNumber: normalizedMobile,
+    excludeUserId: req.user._id,
+  });
 
   const existing = await Seller.findOne({ user: req.user._id });
   if (existing) {
@@ -30,12 +65,13 @@ export const applyForSeller = asyncHandler(async (req, res) => {
     }
   }
 
-  const { storeName, description, tinNumber, address, bankDetails, documents, logo, banner } =
-    req.body;
-
   if (!storeName?.trim()) {
     return sendError(res, "Store name is required");
   }
+
+  req.user.name = name.trim();
+  req.user.mobileNumber = normalizedMobile;
+  await req.user.save();
 
   const storeSlug = slugify(storeName);
   const slugTaken = await Seller.findOne({ storeSlug });

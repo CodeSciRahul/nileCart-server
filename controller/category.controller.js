@@ -4,9 +4,10 @@ import { sendSuccess, sendError } from "../utils/apiResponse.js";
 import { slugify } from "../utils/userHelpers.js";
 
 export const getCategories = asyncHandler(async (req, res) => {
-  const { navOnly } = req.query;
-  const filter = { isActive: true };
+  const { navOnly, includeInactive } = req.query;
+  const filter = {};
   if (navOnly === "true") filter.showInNav = true;
+  if (includeInactive !== "true") filter.isActive = true;
 
   const categories = await Category.find(filter)
     .sort({ displayOrder: 1, name: 1 })

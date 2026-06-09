@@ -2,6 +2,16 @@ import mongoose from "mongoose";
 
 const couponSchema = new mongoose.Schema(
   {
+    seller: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Seller",
+    },
+    sponsoredBy: {
+      type: String,
+      enum: ["seller", "platform"],
+      default: "platform",
+      required: true,
+    },
     code: {
       type: String,
       required: true,
