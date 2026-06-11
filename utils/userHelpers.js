@@ -18,6 +18,7 @@ export const formatUserProfile = (user, seller = null) => ({
   categoryPreferences: user.categoryPreferences,
   role: user.role,
   isActive: user.isActive,
+  isVerified: user.isVerified,
   seller: seller
     ? {
         _id: seller._id,

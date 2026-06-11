@@ -13,6 +13,12 @@ import {
   assertEmailMobileNotRegisteredAsCustomer,
   CUSTOMER_ACCOUNT_MESSAGE,
 } from "../utils/authHelpers.js";
+import { assertValidEmail } from "../utils/emailValidation.js";
+import { isGoogleSignIn, saveEmailOtp } from "../utils/otpHelpers.js";
+import { sendSellerVerificationOtp } from "../service/email.service.js";
+
+const OTP_SENT_MESSAGE =
+  "An OTP has been sent to your email, please verify.";
 
 const issueToken = (userId) =>
   jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
@@ -85,34 +91,54 @@ export const login = asyncHandler(async (req, res) => {
   }
 });
 
-/** Dashboard seller login — email/password or Google; name & mobile set during store application */
+/** Dashboard seller login — blocked until email OTP verified (Google exempt) */
 export const loginSeller = asyncHandler(async (req, res) => {
   try {
     const { token } = req.body;
+    console.log("token", token);
     const decoded = await verifyFirebaseToken(token);
-
+    console.log("decoded", decoded);
     if (!decoded.email) {
       return sendError(
         res,
-        "A verified email address is required to sign in as a seller. Use email/password or Google sign-in.",
+        "A verified email address is required to sign in as a seller.",
         400
       );
     }
-
+    console.log("decoded.email", decoded.email);
+    const normalizedEmail = assertValidEmail(decoded.email);
+    console.log("normalizedEmail", normalizedEmail);
     let user = await resolveUserFromFirebase(decoded);
+    const googleSignIn = isGoogleSignIn(decoded);
+    console.log("googleSignIn", googleSignIn);  
+    if (!user) {
+      console.log("user not found");
+      if (!googleSignIn) {
+        return sendError(res, "No account found. Please register first.", 404);
+      }
+      console.log("googleSignIn is true");
+      await assertEmailMobileNotRegisteredAsCustomer({ email: normalizedEmail });
 
-    if (user) {
-      user = await assertCanAccessSellerAuth(user);
-    } else {
-      await assertEmailMobileNotRegisteredAsCustomer({
-        email: decoded.email,
-      });
-
+      console.log("assertEmailMobileNotRegisteredAsCustomer");
       user = await User.create({
         firebaseUid: decoded.uid,
-        email: decoded.email.toLowerCase(),
+        email: normalizedEmail,
         role: "seller",
+        isVerified: true,
       });
+    } else {
+      user = await assertCanAccessSellerAuth(user);
+    }
+
+    if (!user.isVerified && !googleSignIn) {
+      const otp = await saveEmailOtp(normalizedEmail);
+      await sendSellerVerificationOtp(normalizedEmail, otp);
+
+      return sendError(
+        res,
+        `Please verify your email before signing in. ${OTP_SENT_MESSAGE}`,
+        403
+      );
     }
 
     await sendAuthSuccess(res, user);
