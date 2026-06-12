@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { appConfig } from "../config/appConfig.js";
 import EmailOtp from "../models/EmailOtp.model.js";
 
 const OTP_EXPIRY_MINUTES = 10;
@@ -9,7 +10,7 @@ export const generateOtp = () =>
   String(Math.floor(100000 + Math.random() * 900000));
 
 const hashOtp = (otp) =>
-  crypto.createHash("sha256").update(`${otp}:${process.env.JWT_SECRET}`).digest("hex");
+  crypto.createHash("sha256").update(`${otp}:${appConfig.jwt.secret}`).digest("hex");
 
 export const saveEmailOtp = async (email) => {
   const otp = generateOtp();

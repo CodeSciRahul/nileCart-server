@@ -5,6 +5,7 @@ import Wishlist from "../models/Wishlist.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendSuccess, sendError } from "../utils/apiResponse.js";
 import { formatUserProfile } from "../utils/userHelpers.js";
+import { normalizeStoredImage } from "../utils/storedImageHelpers.js";
 import {
   verifyFirebaseToken,
   loadSellerProfile,
@@ -16,18 +17,19 @@ import {
 import { assertValidEmail } from "../utils/emailValidation.js";
 import { isGoogleSignIn, saveEmailOtp } from "../utils/otpHelpers.js";
 import { sendSellerVerificationOtp } from "../service/email.service.js";
+import { appConfig } from "../config/appConfig.js";
 
 const OTP_SENT_MESSAGE =
   "An OTP has been sent to your email, please verify.";
 
 const issueToken = (userId) =>
-  jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
+  jwt.sign({ userId }, appConfig.jwt.secret, { expiresIn: "7d" });
 
 const setAuthCookie = (res, token) => {
   res.cookie("token", token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+    secure: appConfig.isProduction,
+    sameSite: appConfig.isProduction ? "strict" : "lax",
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 };
@@ -95,9 +97,7 @@ export const login = asyncHandler(async (req, res) => {
 export const loginSeller = asyncHandler(async (req, res) => {
   try {
     const { token } = req.body;
-    console.log("token", token);
     const decoded = await verifyFirebaseToken(token);
-    console.log("decoded", decoded);
     if (!decoded.email) {
       return sendError(
         res,
@@ -105,21 +105,14 @@ export const loginSeller = asyncHandler(async (req, res) => {
         400
       );
     }
-    console.log("decoded.email", decoded.email);
     const normalizedEmail = assertValidEmail(decoded.email);
-    console.log("normalizedEmail", normalizedEmail);
     let user = await resolveUserFromFirebase(decoded);
     const googleSignIn = isGoogleSignIn(decoded);
-    console.log("googleSignIn", googleSignIn);  
     if (!user) {
-      console.log("user not found");
       if (!googleSignIn) {
         return sendError(res, "No account found. Please register first.", 404);
       }
-      console.log("googleSignIn is true");
       await assertEmailMobileNotRegisteredAsCustomer({ email: normalizedEmail });
-
-      console.log("assertEmailMobileNotRegisteredAsCustomer");
       user = await User.create({
         firebaseUid: decoded.uid,
         email: normalizedEmail,
@@ -202,7 +195,8 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
   allowed.forEach((field) => {
     if (req.body[field] !== undefined) {
-      req.user[field] = req.body[field];
+      req.user[field] =
+        field === "avatar" ? normalizeStoredImage(req.body[field]) : req.body[field];
     }
   });
 

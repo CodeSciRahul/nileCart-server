@@ -2,6 +2,7 @@ import admin from "firebase-admin";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
+import { appConfig } from "../config/appConfig.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -10,8 +11,7 @@ let initialized = false;
 export const initFirebaseAdmin = () => {
   if (initialized) return admin;
 
-  const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
-  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
+  const { serviceAccountPath, serviceAccount: serviceAccountJson } = appConfig.firebase;
 
   if (serviceAccountJson) {
     admin.initializeApp({

@@ -1,14 +1,15 @@
 import { Resend } from "resend";
+import { appConfig } from "../config/appConfig.js";
 
 let resendClient = null;
 
 export const getResendClient = () => {
-  if (!process.env.RESEND_API_KEY) {
+  if (!appConfig.resend.apiKey) {
     return null;
   }
 
   if (!resendClient) {
-    resendClient = new Resend(process.env.RESEND_API_KEY);
+    resendClient = new Resend(appConfig.resend.apiKey);
   }
 
   return resendClient;

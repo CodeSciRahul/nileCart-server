@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { storedImageSchema } from "./schemas/storedImage.schema.js";
 
 const variantSchema = new mongoose.Schema(
   {
@@ -9,7 +10,7 @@ const variantSchema = new mongoose.Schema(
     stock: { type: Number, default: 0, min: 0 },
     price: { type: Number, required: true, min: 0 },
     mrp: { type: Number, required: true, min: 0 },
-    images: [String],
+    images: [storedImageSchema],
   },
   { _id: true }
 );
@@ -42,7 +43,7 @@ const productSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Brand",
     },
-    images: [String],
+    images: [storedImageSchema],
     variants: {
       type: [variantSchema],
       validate: [(v) => v.length > 0, "At least one variant is required"],

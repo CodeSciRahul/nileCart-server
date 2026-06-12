@@ -1,3 +1,4 @@
+import { appConfig } from "../config/appConfig.js";
 import { getResendClient } from "../vendor/resend.vendor.js";
 import { getNodemailerTransport } from "../vendor/nodemailer.vendor.js";
 
@@ -14,7 +15,7 @@ const buildOtpHtml = (otp) => `
 
 const sendViaNodemailer = async (email, otp) => {
   const transport = getNodemailerTransport();
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  const from = appConfig.smtp.from;
 
   await transport.sendMail({
     from,
@@ -26,7 +27,7 @@ const sendViaNodemailer = async (email, otp) => {
 
 const sendViaResend = async (email, otp) => {
   const resend = getResendClient();
-  const from = process.env.RESEND_FROM_EMAIL;
+  const from = appConfig.resend.fromEmail;
 
   const { error } = await resend.emails.send({
     from,
@@ -49,14 +50,14 @@ export const sendSellerVerificationOtp = async (email, otp) => {
   }
 
   // const resend = getResendClient();
-  // const from = process.env.RESEND_FROM_EMAIL;
+  // const from = appConfig.resend.fromEmail;
 
   // if (resend && from) {
   //   await sendViaResend(email, otp);
   //   return;
   // }
 
-  if (process.env.NODE_ENV === "development") {
+  if (appConfig.isDevelopment) {
     console.log(`[dev] Seller OTP for ${email}: ${otp}`);
     return;
   }

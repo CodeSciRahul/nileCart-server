@@ -3,6 +3,11 @@ import Product from "../models/Product.model.js";
 import Order from "../models/Order.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendSuccess, sendError } from "../utils/apiResponse.js";
+import {
+  getImageUrl,
+  normalizeStoredImages,
+  toPublicImageUrls,
+} from "../utils/storedImageHelpers.js";
 
 const refreshProductRating = async (productId) => {
   const stats = await Review.aggregate([
@@ -43,13 +48,22 @@ export const getProductReviews = asyncHandler(async (req, res) => {
   const total = await Review.countDocuments(filter);
 
   sendSuccess(res, {
-    reviews,
+    reviews: reviews.map((review) => {
+      const obj = review.toObject();
+      return {
+        ...obj,
+        images: toPublicImageUrls(obj.images),
+        user: obj.user
+          ? { ...obj.user, avatar: getImageUrl(obj.user.avatar) }
+          : obj.user,
+      };
+    }),
     pagination: { page, limit, total, pages: Math.ceil(total / limit) },
   });
 });
 
 export const createReview = asyncHandler(async (req, res) => {
-  const { productId, rating, title, comment, orderId } = req.body;
+  const { productId, rating, title, comment, orderId, images } = req.body;
 
   if (!productId || !rating) {
     return sendError(res, "productId and rating are required");
@@ -76,6 +90,7 @@ export const createReview = asyncHandler(async (req, res) => {
     rating,
     title,
     comment,
+    images: normalizeStoredImages(images),
     isVerifiedPurchase,
   });
 

@@ -7,6 +7,11 @@ import {
   validateCategoryParent,
   deactivateCategoryChildren,
 } from "../utils/categoryHelpers.js";
+import {
+  formatCategoryForDashboard,
+  formatCategoryForPublic,
+  normalizeStoredImage,
+} from "../utils/storedImageHelpers.js";
 
 export const getCategories = asyncHandler(async (req, res) => {
   const { navOnly, includeInactive, tree, parentId, rootsOnly } = req.query;
@@ -25,11 +30,15 @@ export const getCategories = asyncHandler(async (req, res) => {
     .sort({ displayOrder: 1, name: 1 })
     .populate("parent", "name slug");
 
+  const formatCategory =
+    includeInactive === "true" ? formatCategoryForDashboard : formatCategoryForPublic;
+  const formatted = categories.map(formatCategory);
+
   if (tree === "true") {
-    return sendSuccess(res, { categories: buildCategoryTree(categories) });
+    return sendSuccess(res, { categories: buildCategoryTree(formatted) });
   }
 
-  sendSuccess(res, { categories });
+  sendSuccess(res, { categories: formatted });
 });
 
 export const getCategoryBySlug = asyncHandler(async (req, res) => {
@@ -47,7 +56,10 @@ export const getCategoryBySlug = asyncHandler(async (req, res) => {
     .sort({ displayOrder: 1, name: 1 })
     .select("name slug image description displayOrder showInNav");
 
-  sendSuccess(res, { category, children });
+  sendSuccess(res, {
+    category: formatCategoryForPublic(category),
+    children: children.map(formatCategoryForPublic),
+  });
 });
 
 export const createCategory = asyncHandler(async (req, res) => {
@@ -59,7 +71,7 @@ export const createCategory = asyncHandler(async (req, res) => {
   const category = await Category.create({
     name,
     slug: slugify(name),
-    image,
+    image: normalizeStoredImage(image),
     description,
     parent: parentId,
     displayOrder,
@@ -68,7 +80,7 @@ export const createCategory = asyncHandler(async (req, res) => {
 
   await category.populate("parent", "name slug");
 
-  sendSuccess(res, { category }, 201);
+  sendSuccess(res, { category: formatCategoryForDashboard(category) }, 201);
 });
 
 export const updateCategory = asyncHandler(async (req, res) => {
@@ -85,7 +97,8 @@ export const updateCategory = asyncHandler(async (req, res) => {
 
   allowed.forEach((field) => {
     if (req.body[field] !== undefined) {
-      category[field] = req.body[field];
+      category[field] =
+        field === "image" ? normalizeStoredImage(req.body[field]) : req.body[field];
     }
   });
 
@@ -96,7 +109,7 @@ export const updateCategory = asyncHandler(async (req, res) => {
   await category.save();
   await category.populate("parent", "name slug");
 
-  sendSuccess(res, { category });
+  sendSuccess(res, { category: formatCategoryForDashboard(category) });
 });
 
 export const deleteCategory = asyncHandler(async (req, res) => {

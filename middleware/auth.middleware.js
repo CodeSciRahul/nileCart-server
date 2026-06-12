@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { appConfig } from "../config/appConfig.js";
 import User from "../models/User.model.js";
 import Seller from "../models/Seller.model.js";
 import { sendError } from "../utils/apiResponse.js";
@@ -15,7 +16,7 @@ export const protect = async (req, res, next) => {
       return sendError(res, "Not authenticated", 401);
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, appConfig.jwt.secret);
     const user = await User.findById(decoded.userId).select("-__v");
 
     if (!user) {
@@ -42,7 +43,7 @@ export const optionalAuth = async (req, res, next) => {
         : null);
 
     if (token) {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, appConfig.jwt.secret);
       const user = await User.findById(decoded.userId);
       req.user = user?.isActive ? user : null;
     }

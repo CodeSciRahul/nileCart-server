@@ -1,11 +1,10 @@
 import nodemailer from "nodemailer";
+import { appConfig } from "../config/appConfig.js";
 
 let transport = null;
 
 export const getNodemailerTransport = () => {
-  const host = process.env.SMTP_HOST;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const { host, user, pass, port, secure } = appConfig.smtp;
 
   if (!host || !user || !pass) {
     return null;
@@ -14,8 +13,8 @@ export const getNodemailerTransport = () => {
   if (!transport) {
     transport = nodemailer.createTransport({
       host,
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: process.env.SMTP_SECURE === "true",
+      port,
+      secure,
       auth: { user, pass },
     });
   }

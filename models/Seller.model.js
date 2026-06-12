@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { storedImageSchema } from "./schemas/storedImage.schema.js";
 
 const sellerSchema = new mongoose.Schema(
   {
@@ -20,13 +21,19 @@ const sellerSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
-    logo: String,
-    banner: String,
+    logo: storedImageSchema,
+    banner: storedImageSchema,
     description: String,
     tinNumber: {
       type: String,
       trim: true,
     },
+    nationalId: {
+      type: String,
+      trim: true,
+      required: true,
+      unique: true,
+    },  
     address: {
       addressLine: { type: String, trim: true },
       city: { type: String, trim: true },
@@ -35,9 +42,9 @@ const sellerSchema = new mongoose.Schema(
       pincode: { type: String, trim: true },
     },
     bankDetails: {
-      accountHolderName: { type: String, trim: true },
-      accountNumber: { type: String, trim: true },
-      ifscCode: { type: String, trim: true },
+      accountHolderName: { type: String, trim: true, required: true },
+      accountNumber: { type: String, trim: true, required: true },
+      ifscCode: { type: String, trim: true, required: true },
     },
     commissionRate: {
       type: Number,

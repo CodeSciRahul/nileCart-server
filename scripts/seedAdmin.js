@@ -1,17 +1,8 @@
-import "dotenv/config";
 import mongoose from "mongoose";
+import { appConfig } from "../config/appConfig.js";
 import { connectDB } from "../config/db.js";
 import { initFirebaseAdmin } from "../vendor/firebase.vendor.js";
 import User from "../models/User.model.js";
-
-const requireEnv = (key) => {
-  const value = process.env[key]?.trim();
-  if (!value) {
-    console.error(`Error: ${key} is required.`);
-    process.exit(1);
-  }
-  return value;
-};
 
 /**
  * Seeds the first platform admin in Firebase Auth + MongoDB.
@@ -25,9 +16,19 @@ const requireEnv = (key) => {
  * Password is stored in Firebase Auth only — never in MongoDB.
  */
 const seedAdmin = async () => {
-  const email = requireEnv("ADMIN_EMAIL").toLowerCase();
-  const password = requireEnv("ADMIN_PASSWORD");
-  const name = process.env.ADMIN_NAME?.trim() || "Platform Admin";
+  const email = appConfig.admin.email?.toLowerCase();
+  const password = appConfig.admin.password;
+  const name = appConfig.admin.name;
+
+  if (!email) {
+    console.error("Error: ADMIN_EMAIL is required.");
+    process.exit(1);
+  }
+
+  if (!password) {
+    console.error("Error: ADMIN_PASSWORD is required.");
+    process.exit(1);
+  }
 
   if (password.length < 6) {
     console.error("Error: ADMIN_PASSWORD must be at least 6 characters.");

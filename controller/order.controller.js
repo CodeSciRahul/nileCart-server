@@ -6,6 +6,7 @@ import Coupon from "../models/Coupon.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendSuccess, sendError } from "../utils/apiResponse.js";
 import { findVariant } from "../utils/productHelpers.js";
+import { getImageUrl } from "../utils/storedImageHelpers.js";
 import {
   generateOrderNumber,
   calculateShippingFee,
@@ -48,7 +49,7 @@ const buildOrderFromCart = async (userId, { addressId, paymentMethod = "cod" }) 
       title: product.title,
       size: variant.size,
       color: variant.color,
-      image: variant.images?.[0] || product.images?.[0],
+      image: getImageUrl(variant.images?.[0]) || getImageUrl(product.images?.[0]),
       quantity: item.quantity,
       price: variant.price,
       mrp: variant.mrp,

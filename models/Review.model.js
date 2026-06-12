@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { storedImageSchema } from "./schemas/storedImage.schema.js";
 
 const reviewSchema = new mongoose.Schema(
   {
@@ -27,7 +28,7 @@ const reviewSchema = new mongoose.Schema(
       type: String,
       maxlength: 1000,
     },
-    images: [String],
+    images: [storedImageSchema],
     isVerifiedPurchase: {
       type: Boolean,
       default: false,

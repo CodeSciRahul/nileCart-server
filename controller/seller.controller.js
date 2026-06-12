@@ -7,6 +7,11 @@ import {
   assertEmailMobileNotRegisteredAsCustomer,
   CUSTOMER_CANNOT_BECOME_SELLER_MESSAGE,
 } from "../utils/authHelpers.js";
+import {
+  formatSellerForDashboard,
+  formatSellerForPublic,
+  normalizeStoredImage,
+} from "../utils/storedImageHelpers.js";
 
 export const applyForSeller = asyncHandler(async (req, res) => {
   if (req.user.role === "admin") {
@@ -88,16 +93,16 @@ export const applyForSeller = asyncHandler(async (req, res) => {
     address,
     bankDetails,
     documents,
-    logo,
-    banner,
+    logo: normalizeStoredImage(logo),
+    banner: normalizeStoredImage(banner),
     approvalStatus: "Pending",
   });
 
-  sendSuccess(res, { seller }, 201);
+  sendSuccess(res, { seller: formatSellerForDashboard(seller) }, 201);
 });
 
 export const getMySellerProfile = asyncHandler(async (req, res) => {
-  sendSuccess(res, { seller: req.seller });
+  sendSuccess(res, { seller: formatSellerForDashboard(req.seller) });
 });
 
 export const updateMySellerProfile = asyncHandler(async (req, res) => {
@@ -133,7 +138,10 @@ export const updateMySellerProfile = asyncHandler(async (req, res) => {
 
     pendingFields.forEach((field) => {
       if (req.body[field] !== undefined) {
-        seller[field] = req.body[field];
+        seller[field] =
+          field === "logo" || field === "banner"
+            ? normalizeStoredImage(req.body[field])
+            : req.body[field];
       }
     });
   } else {
@@ -148,13 +156,16 @@ export const updateMySellerProfile = asyncHandler(async (req, res) => {
 
     approvedFields.forEach((field) => {
       if (req.body[field] !== undefined) {
-        seller[field] = req.body[field];
+        seller[field] =
+          field === "logo" || field === "banner"
+            ? normalizeStoredImage(req.body[field])
+            : req.body[field];
       }
     });
   }
 
   await seller.save();
-  sendSuccess(res, { seller });
+  sendSuccess(res, { seller: formatSellerForDashboard(seller) });
 });
 
 export const getSellerBySlug = asyncHandler(async (req, res) => {
@@ -170,7 +181,7 @@ export const getSellerBySlug = asyncHandler(async (req, res) => {
     return sendError(res, "Store not found", 404);
   }
 
-  sendSuccess(res, { seller });
+  sendSuccess(res, { seller: formatSellerForPublic(seller) });
 });
 
 export const listSellers = asyncHandler(async (req, res) => {

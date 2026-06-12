@@ -11,6 +11,7 @@ import couponRoutes from "./coupon.route.js";
 import reviewRoutes from "./review.route.js";
 import sellerRoutes from "./seller.route.js";
 import adminRoutes from "./admin.route.js";
+import uploadRoutes from "./upload.route.js";
 
 const router = Router();
 
@@ -27,6 +28,7 @@ router.use("/addresses", addressRoutes);
 router.use("/orders", orderRoutes);
 router.use("/coupons", couponRoutes);
 router.use("/reviews", reviewRoutes);
+router.use("/uploads", uploadRoutes);
 
 router.get("/health", (req, res) => {
   res.json({ success: true, message: "LightCollection API is running" });

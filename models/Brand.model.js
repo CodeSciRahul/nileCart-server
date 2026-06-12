@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { storedImageSchema } from "./schemas/storedImage.schema.js";
 
 const brandSchema = new mongoose.Schema(
   {
@@ -13,7 +14,7 @@ const brandSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
     },
-    logo: String,
+    logo: storedImageSchema,
     isActive: {
       type: Boolean,
       default: true,

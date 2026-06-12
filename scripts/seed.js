@@ -1,4 +1,3 @@
-import "dotenv/config";
 import mongoose from "mongoose";
 import { connectDB } from "../config/db.js";
 import Category from "../models/Category.model.js";

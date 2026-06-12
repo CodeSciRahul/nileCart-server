@@ -1,3 +1,5 @@
+import { toPublicImageUrls } from "./storedImageHelpers.js";
+
 export const getProductListPrice = (product) => {
   if (!product?.variants?.length) return { price: 0, mrp: 0, discountPercent: 0 };
   const variant = product.variants[0];
@@ -11,6 +13,8 @@ export const getProductListPrice = (product) => {
 
 export const formatProductCard = (product) => {
   const { price, mrp, discountPercent } = getProductListPrice(product);
+  console.log("product", product?.variants)
+  console.log("variants", product?.variants?.map((variant) => variant.images))
   return {
     _id: product._id,
     title: product?.title,

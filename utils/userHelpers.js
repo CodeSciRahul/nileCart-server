@@ -1,3 +1,5 @@
+import { getImageUrl } from "./storedImageHelpers.js";
+
 const slugify = (text) =>
   text
     .toLowerCase()
@@ -14,7 +16,7 @@ export const formatUserProfile = (user, seller = null) => ({
   mobileNumber: user.mobileNumber,
   gender: user.gender,
   birthday: user.birthday,
-  avatar: user.avatar,
+  avatar: getImageUrl(user.avatar),
   categoryPreferences: user.categoryPreferences,
   role: user.role,
   isActive: user.isActive,

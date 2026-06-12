@@ -4,6 +4,11 @@ import Seller from "../models/Seller.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendSuccess, sendError } from "../utils/apiResponse.js";
 import { formatProductCard } from "../utils/productHelpers.js";
+import {
+  formatProductForDashboard,
+  formatProductForPublic,
+  normalizeProductPayload,
+} from "../utils/storedImageHelpers.js";
 import { slugify } from "../utils/userHelpers.js";
 
 const buildProductFilter = async (query) => {
@@ -100,7 +105,7 @@ export const getProductBySlug = asyncHandler(async (req, res) => {
     .populate("seller", "storeName storeSlug logo rating");
 
   if (!product) return sendError(res, "Product not found", 404);
-  sendSuccess(res, { product });
+  sendSuccess(res, { product: formatProductForPublic(product) });
 });
 
 export const searchProducts = asyncHandler(async (req, res) => {
@@ -119,11 +124,11 @@ export const getMyProducts = asyncHandler(async (req, res) => {
     .populate("category", "name slug")
     .sort("-createdAt");
 
-  sendSuccess(res, { products });
+  sendSuccess(res, { products: products.map(formatProductForDashboard) });
 });
 
 export const createProduct = asyncHandler(async (req, res) => {
-  const { title, category, variants, seller: sellerId, ...rest } = req.body;
+  const { title, category, variants, seller: sellerId, ...rest } = normalizeProductPayload(req.body);
   if (!title || !category || !variants?.length) {
     return sendError(res, "title, category, and variants are required");
   }
@@ -151,7 +156,7 @@ export const createProduct = asyncHandler(async (req, res) => {
     ...rest,
   });
 
-  sendSuccess(res, { product }, 201);
+  sendSuccess(res, { product: formatProductForDashboard(product) }, 201);
 });
 
 export const updateProduct = asyncHandler(async (req, res) => {
@@ -164,15 +169,17 @@ export const updateProduct = asyncHandler(async (req, res) => {
     return sendError(res, "You can only update your own products", 403);
   }
 
+  const normalized = normalizeProductPayload(req.body);
   const blocked = ["seller", "_id", "slug"];
-  Object.keys(req.body).forEach((key) => {
-    if (!blocked.includes(key) && req.body[key] !== undefined) {
-      product[key] = req.body[key];
+
+  Object.keys(normalized).forEach((key) => {
+    if (!blocked.includes(key) && normalized[key] !== undefined) {
+      product[key] = normalized[key];
     }
   });
 
   await product.save();
-  sendSuccess(res, { product });
+  sendSuccess(res, { product: formatProductForDashboard(product) });
 });
 
 export const deleteProduct = asyncHandler(async (req, res) => {

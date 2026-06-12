@@ -1,21 +1,21 @@
-import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import { appConfig } from "./config/appConfig.js";
 import { connectDB } from "./config/db.js";
 import { initFirebaseAdmin } from "./vendor/firebase.vendor.js";
 import apiRoutes from "./routes/index.js";
 import { notFound, errorHandler } from "./middleware/error.middleware.js";
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = appConfig.port;
 
 initFirebaseAdmin();
 
 app.use(
   cors({
     origin: [
-      process.env.CLIENT_URL || "http://localhost:5173",
+      appConfig.clientUrl,
       "http://localhost:5174"
     ],
     credentials: true,

@@ -2,6 +2,11 @@ import Banner from "../models/Banner.model.js";
 import Announcement from "../models/Announcement.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendSuccess, sendError } from "../utils/apiResponse.js";
+import {
+  formatBannerForDashboard,
+  formatBannerForPublic,
+  normalizeStoredImage,
+} from "../utils/storedImageHelpers.js";
 
 const now = () => new Date();
 
@@ -20,7 +25,7 @@ export const getBanners = asyncHandler(async (req, res) => {
     ...activeDateFilter,
   }).sort({ displayOrder: 1 });
 
-  sendSuccess(res, { banners });
+  sendSuccess(res, { banners: banners.map(formatBannerForPublic) });
 });
 
 export const getAnnouncements = asyncHandler(async (req, res) => {
@@ -34,15 +39,18 @@ export const getAnnouncements = asyncHandler(async (req, res) => {
 
 export const listBannersAdmin = asyncHandler(async (req, res) => {
   const banners = await Banner.find().sort({ displayOrder: 1, createdAt: -1 });
-  sendSuccess(res, { banners });
+  sendSuccess(res, { banners: banners.map(formatBannerForDashboard) });
 });
 
 export const createBanner = asyncHandler(async (req, res) => {
   const { title, image } = req.body;
   if (!title || !image) return sendError(res, "title and image are required");
 
-  const banner = await Banner.create(req.body);
-  sendSuccess(res, { banner }, 201);
+  const banner = await Banner.create({
+    ...req.body,
+    image: normalizeStoredImage(image),
+  });
+  sendSuccess(res, { banner: formatBannerForDashboard(banner) }, 201);
 });
 
 export const updateBanner = asyncHandler(async (req, res) => {
@@ -63,11 +71,14 @@ export const updateBanner = asyncHandler(async (req, res) => {
   ];
 
   allowed.forEach((field) => {
-    if (req.body[field] !== undefined) banner[field] = req.body[field];
+    if (req.body[field] !== undefined) {
+      banner[field] =
+        field === "image" ? normalizeStoredImage(req.body[field]) : req.body[field];
+    }
   });
 
   await banner.save();
-  sendSuccess(res, { banner });
+  sendSuccess(res, { banner: formatBannerForDashboard(banner) });
 });
 
 export const toggleBannerStatus = asyncHandler(async (req, res) => {
@@ -78,7 +89,7 @@ export const toggleBannerStatus = asyncHandler(async (req, res) => {
     typeof req.body.isActive === "boolean" ? req.body.isActive : !banner.isActive;
   await banner.save();
 
-  sendSuccess(res, { banner });
+  sendSuccess(res, { banner: formatBannerForDashboard(banner) });
 });
 
 export const deleteBanner = asyncHandler(async (req, res) => {

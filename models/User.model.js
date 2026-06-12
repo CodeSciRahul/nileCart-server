@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { storedImageSchema } from "./schemas/storedImage.schema.js";
 
 const userSchema = new mongoose.Schema(
   {
@@ -32,7 +33,7 @@ const userSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
-    avatar: String,
+    avatar: storedImageSchema,
     role: {
       type: String,
       enum: ["customer", "seller", "admin"],

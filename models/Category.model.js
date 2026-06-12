@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { storedImageSchema } from "./schemas/storedImage.schema.js";
 
 const categorySchema = new mongoose.Schema(
   {
@@ -13,7 +14,7 @@ const categorySchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
     },
-    image: String,
+    image: storedImageSchema,
     description: String,
     parent: {
       type: mongoose.Schema.Types.ObjectId,
