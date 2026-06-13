@@ -10,7 +10,9 @@ import {
 import {
   formatSellerForDashboard,
   formatSellerForPublic,
+  mergeSellerDocuments,
   normalizeStoredImage,
+  normalizeSellerDocuments,
 } from "../utils/storedImageHelpers.js";
 
 export const applyForSeller = asyncHandler(async (req, res) => {
@@ -26,8 +28,19 @@ export const applyForSeller = asyncHandler(async (req, res) => {
     return sendError(res, "You are not eligible to apply as a seller", 403);
   }
 
-  const { storeName, name, mobileNumber, description, tinNumber, address, bankDetails, documents, logo, banner } =
-    req.body;
+  const {
+    storeName,
+    name,
+    mobileNumber,
+    description,
+    tinNumber,
+    nationalId,
+    address,
+    bankDetails,
+    documents,
+    logo,
+    banner,
+  } = req.body;
 
   if (!name?.trim()) {
     return sendError(res, "Name is required");
@@ -74,6 +87,10 @@ export const applyForSeller = asyncHandler(async (req, res) => {
     return sendError(res, "Store name is required");
   }
 
+  if (!nationalId?.trim()) {
+    return sendError(res, "National ID is required");
+  }
+
   req.user.name = name.trim();
   req.user.mobileNumber = normalizedMobile;
   await req.user.save();
@@ -92,7 +109,8 @@ export const applyForSeller = asyncHandler(async (req, res) => {
     tinNumber,
     address,
     bankDetails,
-    documents,
+    nationalId: nationalId.trim(),
+    documents: normalizeSellerDocuments(documents),
     logo: normalizeStoredImage(logo),
     banner: normalizeStoredImage(banner),
     approvalStatus: "Pending",
@@ -107,8 +125,9 @@ export const getMySellerProfile = asyncHandler(async (req, res) => {
 
 export const updateMySellerProfile = asyncHandler(async (req, res) => {
   const seller = req.seller;
+  const wasRejected = seller.approvalStatus === "Rejected";
 
-  if (seller.approvalStatus === "Pending") {
+  if (seller.approvalStatus === "Pending" || seller.approvalStatus === "Rejected") {
     const pendingFields = [
       "description",
       "tinNumber",
@@ -136,14 +155,44 @@ export const updateMySellerProfile = asyncHandler(async (req, res) => {
       }
     }
 
-    pendingFields.forEach((field) => {
-      if (req.body[field] !== undefined) {
-        seller[field] =
-          field === "logo" || field === "banner"
-            ? normalizeStoredImage(req.body[field])
-            : req.body[field];
+    if (req.body.nationalId !== undefined) {
+      const nationalId = req.body.nationalId?.trim();
+      if (!nationalId) {
+        return sendError(res, "National ID is required");
       }
+
+      if (nationalId !== seller.nationalId) {
+        const nationalIdTaken = await Seller.findOne({
+          nationalId,
+          _id: { $ne: seller._id },
+        });
+        if (nationalIdTaken) {
+          return sendError(res, "This national ID is already registered", 400);
+        }
+        seller.nationalId = nationalId;
+      }
+    }
+
+    pendingFields.forEach((field) => {
+      if (req.body[field] === undefined) return;
+
+      if (field === "logo" || field === "banner") {
+        seller[field] = normalizeStoredImage(req.body[field]);
+        return;
+      }
+
+      if (field === "documents") {
+        seller.documents = mergeSellerDocuments(seller.documents, req.body.documents);
+        return;
+      }
+
+      seller[field] = req.body[field];
     });
+
+    if (wasRejected) {
+      seller.approvalStatus = "Pending";
+      seller.rejectionReason = undefined;
+    }
   } else {
     const approvedFields = [
       "logo",
@@ -155,12 +204,19 @@ export const updateMySellerProfile = asyncHandler(async (req, res) => {
     ];
 
     approvedFields.forEach((field) => {
-      if (req.body[field] !== undefined) {
-        seller[field] =
-          field === "logo" || field === "banner"
-            ? normalizeStoredImage(req.body[field])
-            : req.body[field];
+      if (req.body[field] === undefined) return;
+
+      if (field === "logo" || field === "banner") {
+        seller[field] = normalizeStoredImage(req.body[field]);
+        return;
       }
+
+      if (field === "documents") {
+        seller.documents = mergeSellerDocuments(seller.documents, req.body.documents);
+        return;
+      }
+
+      seller[field] = req.body[field];
     });
   }
 
@@ -260,3 +316,16 @@ export const deactivateSeller = asyncHandler(async (req, res) => {
 
   sendSuccess(res, { seller, message: "Seller deactivated" });
 });
+
+export const getSellerById = asyncHandler(async (req, res) => {
+  const seller = await Seller.findById(req.params.id).populate(
+    "user",
+    "name email mobileNumber role isActive"
+  );
+
+  if (!seller) {
+    return sendError(res, "Seller not found", 404);
+  }
+
+  sendSuccess(res, { seller: formatSellerForDashboard(seller) });
+}); 

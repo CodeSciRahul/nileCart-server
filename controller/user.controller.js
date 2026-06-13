@@ -125,8 +125,8 @@ export const loginSeller = asyncHandler(async (req, res) => {
 
     if (!user.isVerified && !googleSignIn) {
       const otp = await saveEmailOtp(normalizedEmail);
-      await sendSellerVerificationOtp(normalizedEmail, otp);
-
+      console.log("otp", otp)
+      const response = await sendSellerVerificationOtp(normalizedEmail, otp);
       return sendError(
         res,
         `Please verify your email before signing in. ${OTP_SENT_MESSAGE}`,
@@ -147,7 +147,6 @@ export const loginAdmin = asyncHandler(async (req, res) => {
     const decoded = await verifyFirebaseToken(token);
 
     const user = await resolveUserFromFirebase(decoded, mobileNumber);
-
     if (!user) {
       return sendError(
         res,

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   listSellers,
+  getSellerById,
   approveSeller,
   rejectSeller,
   deactivateSeller,
@@ -42,6 +43,7 @@ router.use(protect, authorize("admin"));
 router.get("/stats", getAdminStats);
 
 router.get("/sellers", listSellers);
+router.get("/sellers/:id", getSellerById);
 router.patch("/sellers/:id/approve", approveSeller);
 router.patch("/sellers/:id/reject", rejectSeller);
 router.patch("/sellers/:id/deactivate", deactivateSeller);

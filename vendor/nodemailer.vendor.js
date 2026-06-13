@@ -11,12 +11,17 @@ export const getNodemailerTransport = () => {
   }
 
   if (!transport) {
+    try {
     transport = nodemailer.createTransport({
       host,
       port,
       secure,
       auth: { user, pass },
-    });
+      });
+    } catch (error) {
+      console.log("Error creating nodemailer transport", error)
+      throw error;
+    } 
   }
 
   return transport;

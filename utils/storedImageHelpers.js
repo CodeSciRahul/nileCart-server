@@ -103,6 +103,52 @@ export const formatSellerForPublic = (seller) => {
   };
 };
 
+const SELLER_DOCUMENT_KEYS = ["idProof", "businessProof", "addressProof"];
+
+export const normalizeSellerDocuments = (documents) => {
+  if (!documents || typeof documents !== "object") return undefined;
+
+  const result = {};
+
+  for (const key of SELLER_DOCUMENT_KEYS) {
+    const image = normalizeStoredImage(documents[key]);
+    if (image) result[key] = image;
+  }
+
+  return Object.keys(result).length ? result : undefined;
+};
+
+export const formatSellerDocumentsForDashboard = (documents) => {
+  if (!documents || typeof documents !== "object") return undefined;
+
+  const result = {};
+
+  for (const key of SELLER_DOCUMENT_KEYS) {
+    const image = normalizeStoredImage(documents[key]);
+    if (image) result[key] = image;
+  }
+
+  return Object.keys(result).length ? result : undefined;
+};
+
+export const mergeSellerDocuments = (existing, incoming) => {
+  if (!incoming || typeof incoming !== "object") return undefined;
+
+  const base =
+    existing?.toObject?.() ??
+    (typeof existing === "object" ? { ...existing } : {});
+
+  for (const key of SELLER_DOCUMENT_KEYS) {
+    if (incoming[key] !== undefined) {
+      const image = normalizeStoredImage(incoming[key]);
+      if (image) base[key] = image;
+      else delete base[key];
+    }
+  }
+
+  return Object.keys(base).length ? base : undefined;
+};
+
 export const formatSellerForDashboard = (seller) => {
   const obj = seller?.toObject ? seller.toObject() : { ...seller };
 
@@ -110,6 +156,7 @@ export const formatSellerForDashboard = (seller) => {
     ...obj,
     logo: normalizeStoredImage(obj.logo),
     banner: normalizeStoredImage(obj.banner),
+    documents: formatSellerDocumentsForDashboard(obj.documents),
   };
 };
 

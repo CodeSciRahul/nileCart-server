@@ -19,12 +19,20 @@ export const UPLOAD_FOLDERS = {
   PROFILES: "profiles",
   PLATFORM_BANNERS: "platform-banners",
   CATEGORIES: "categories",
+  SELLER_DOCUMENTS: "seller-documents",
+};
+
+export const SELLER_DOCUMENT_TYPES = {
+  ID_PROOF: "id-proof",
+  BUSINESS_PROOF: "business-proof",
+  ADDRESS_PROOF: "address-proof",
 };
 
 const SELLER_SCOPED_FOLDERS = new Set([
   UPLOAD_FOLDERS.PRODUCTS,
   UPLOAD_FOLDERS.STORE_LOGOS,
   UPLOAD_FOLDERS.STORE_BANNERS,
+  UPLOAD_FOLDERS.SELLER_DOCUMENTS,
 ]);
 
 const EXTENSION_TO_MIME = {
@@ -85,7 +93,10 @@ export const isSellerScopedFolder = (folder) => SELLER_SCOPED_FOLDERS.has(folder
  * Builds a unique, structured S3 object key.
  * Example: products/{sellerId}/{uuid}.jpg
  */
-export const buildObjectKey = ({ folder, extension, userId, sellerId }) => {
+export const isValidSellerDocumentType = (documentType) =>
+  Object.values(SELLER_DOCUMENT_TYPES).includes(documentType);
+
+export const buildObjectKey = ({ folder, extension, userId, sellerId, documentType }) => {
   const fileId = randomUUID();
   const fileName = `${fileId}.${extension}`;
 
@@ -102,6 +113,8 @@ export const buildObjectKey = ({ folder, extension, userId, sellerId }) => {
       return `banners/${fileName}`;
     case UPLOAD_FOLDERS.CATEGORIES:
       return `categories/${fileName}`;
+    case UPLOAD_FOLDERS.SELLER_DOCUMENTS:
+      return `stores/documents/${sellerId}/${documentType}/${fileName}`;
     default:
       return null;
   }
@@ -170,7 +183,11 @@ export const assertCanDeleteObjectKey = ({ key, user, seller }) => {
     return;
   }
 
-  if (trimmed.startsWith("stores/logos/") || trimmed.startsWith("stores/banners/")) {
+  if (
+    trimmed.startsWith("stores/logos/") ||
+    trimmed.startsWith("stores/banners/") ||
+    trimmed.startsWith("stores/documents/")
+  ) {
     const pathOwnerId = trimmed.split("/")[2];
     if (!ownedIds.includes(pathOwnerId)) {
       const err = new Error("You cannot delete this image.");

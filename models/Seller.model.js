@@ -57,11 +57,11 @@ const sellerSchema = new mongoose.Schema(
       count: { type: Number, default: 0, min: 0 },
     },
     documents: {
-      idProof: [String],
-      businessProof: [String],
-      addressProof: [String],
+      idProof: storedImageSchema,
+      businessProof: storedImageSchema,
+      addressProof: storedImageSchema,
     },
-    isVerified: {
+    isMobileVerified: {
       type: Boolean,
       default: false,
     },

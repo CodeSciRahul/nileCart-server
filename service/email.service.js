@@ -17,12 +17,13 @@ const sendViaNodemailer = async (email, otp) => {
   const transport = getNodemailerTransport();
   const from = appConfig.smtp.from;
 
-  await transport.sendMail({
+  const response = await transport.sendMail({
     from,
     to: email,
     subject: OTP_SUBJECT,
     html: buildOtpHtml(otp),
   });
+  return response;
 };
 
 const sendViaResend = async (email, otp) => {
@@ -45,8 +46,8 @@ const sendViaResend = async (email, otp) => {
 
 export const sendSellerVerificationOtp = async (email, otp) => {
   if (getNodemailerTransport()) {
-    await sendViaNodemailer(email, otp);
-    return;
+    const response = await sendViaNodemailer(email, otp);
+    return response;
   }
 
   // const resend = getResendClient();

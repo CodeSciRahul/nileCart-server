@@ -14,6 +14,7 @@ import {
   isValidUploadFolder,
   PRESIGN_EXPIRES_IN_SECONDS,
   UPLOAD_FOLDERS,
+  isValidSellerDocumentType,
   validateImageUpload,
 } from "../utils/uploadHelpers.js";
 
@@ -111,6 +112,7 @@ export const createPresignedUploadUrl = async ({
   fileName,
   contentType,
   folder,
+  documentType,
   user,
   seller,
 }) => {
@@ -122,12 +124,19 @@ export const createPresignedUploadUrl = async ({
     throw err;
   }
 
+  if (folder === UPLOAD_FOLDERS.SELLER_DOCUMENTS && !isValidSellerDocumentType(documentType)) {
+    const err = new Error("documentType is required for seller document uploads.");
+    err.statusCode = 400;
+    throw err;
+  }
+
   const { userId, sellerId } = resolveUploadContext({ folder, user, seller });
   const key = buildObjectKey({
     folder,
     extension: validation.extension,
     userId,
     sellerId,
+    documentType,
   });
 
   if (!key) {

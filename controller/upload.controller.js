@@ -13,7 +13,7 @@ import { UPLOAD_FOLDERS } from "../utils/uploadHelpers.js";
  * Returns a presigned PUT URL for direct browser-to-S3 upload.
  */
 export const createPresignedUrl = asyncHandler(async (req, res) => {
-  const { fileName, contentType, folder = UPLOAD_FOLDERS.PRODUCTS } = req.body;
+  const { fileName, contentType, folder = UPLOAD_FOLDERS.PRODUCTS, documentType } = req.body;
 
   if (!fileName?.trim()) {
     return sendError(res, "fileName is required.", 400);
@@ -27,6 +27,7 @@ export const createPresignedUrl = asyncHandler(async (req, res) => {
     fileName,
     contentType,
     folder,
+    documentType,
     user: req.user,
     seller: req.seller,
   });

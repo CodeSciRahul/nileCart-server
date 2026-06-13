@@ -73,9 +73,9 @@ export const requireSellerProfile = async (req, res, next) => {
     return sendError(res, "No seller profile found. Apply to become a seller first", 404);
   }
 
-  if (seller.approvalStatus === "Rejected") {
-    return sendError(res, "Your application was rejected. Contact support to reapply", 403);
-  }
+  // if (seller.approvalStatus === "Rejected") {
+  //   return sendError(res, "Your application was rejected. Contact support to reapply", 403);
+  // }
 
   req.seller = seller;
   next();
