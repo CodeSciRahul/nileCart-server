@@ -14,4 +14,4 @@ export const connectDB = async () => {
     console.error("Error to connect db", error?.message)
     process.exit()
   }
-};
+}
