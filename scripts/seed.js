@@ -41,15 +41,15 @@ const seed = async () => {
   const brand = await Brand.create({ name: "Savana", slug: "savana" });
 
   const platformUser = await User.create({
-    email: "platform-store@lightcollection.local",
+    email: "platform-store@nilecart.local",
     name: "Platform Store",
     role: "seller",
   });
 
   const platformSeller = await Seller.create({
     user: platformUser._id,
-    storeName: "LightCollection Official",
-    storeSlug: "lightcollection-official",
+    storeName: "NileCart Official",
+    storeSlug: "nilecart-official",
     description: "Official platform store for seeded catalog products",
     approvalStatus: "Approved",
     isVerified: true,

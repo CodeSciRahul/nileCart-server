@@ -34,6 +34,12 @@ import {
   updateCategory,
   deleteCategory,
 } from "../controller/category.controller.js";
+import {
+  listAnnouncementsAdmin,
+  createAnnouncement,
+  updateAnnouncement,
+  deleteAnnouncement,
+} from "../controller/announcement.controller.js";
 import { protect, authorize } from "../middleware/auth.middleware.js";
 
 const router = Router();
@@ -72,5 +78,10 @@ router.get("/categories", (req, res, next) => {
 router.post("/categories", createCategory);
 router.put("/categories/:id", updateCategory);
 router.delete("/categories/:id", deleteCategory);
+
+router.get("/announcements", listAnnouncementsAdmin);
+router.post("/announcements", createAnnouncement);
+router.put("/announcements/:id", updateAnnouncement);
+router.delete("/announcements/:id", deleteAnnouncement);
 
 export default router;

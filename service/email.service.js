@@ -2,7 +2,7 @@ import { appConfig } from "../config/appConfig.js";
 import { getResendClient } from "../vendor/resend.vendor.js";
 import { getNodemailerTransport } from "../vendor/nodemailer.vendor.js";
 
-const OTP_SUBJECT = "Your LightCollection seller verification code";
+const OTP_SUBJECT = "Your NileCart seller verification code";
 
 const buildOtpHtml = (otp) => `
   <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">

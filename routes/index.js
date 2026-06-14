@@ -3,6 +3,7 @@ import userRoutes from "./user.route.js";
 import categoryRoutes from "./category.route.js";
 import productRoutes from "./product.route.js";
 import bannerRoutes from "./banner.route.js";
+import announcementRoutes from "./announcement.route.js";
 import cartRoutes from "./cart.route.js";
 import wishlistRoutes from "./wishlist.route.js";
 import addressRoutes from "./address.route.js";
@@ -22,6 +23,7 @@ router.use("/admin", adminRoutes);
 router.use("/categories", categoryRoutes);
 router.use("/products", productRoutes);
 router.use("/banners", bannerRoutes);
+router.use("/announcements", announcementRoutes);
 router.use("/cart", cartRoutes);
 router.use("/wishlist", wishlistRoutes);
 router.use("/addresses", addressRoutes);
@@ -31,7 +33,7 @@ router.use("/reviews", reviewRoutes);
 router.use("/uploads", uploadRoutes);
 
 router.get("/health", (req, res) => {
-  res.json({ success: true, message: "LightCollection API is running" });
+  res.json({ success: true, message: "NileCart API is running" });
 });
 
 export default router;
