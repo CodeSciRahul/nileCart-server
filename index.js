@@ -15,9 +15,7 @@ initFirebaseAdmin();
 app.use(
   cors({
     origin: [
-      appConfig.clientUrl,
-      "http://localhost:5174",
-      "http://localhost:3000"
+      appConfig.clientUrl.split(",")
     ],
     credentials: true,
   })
