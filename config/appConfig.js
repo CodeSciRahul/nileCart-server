@@ -23,7 +23,7 @@ export const appConfig = {
 // SMTP_SECURE=false
 // SMTP_USER=rahulkumarkudra2004@gmail.com
 // SMTP_PASS=ynpm haje zvkb jyrg
-// SMTP_FROM="LightCollection <rahulkumarkudra2004@gmail.com>"
+// SMTP_FROM="NileCart <rahulkumarkudra2004@gmail.com>"
   smtp: {
     host: trim(process.env.SMTP_HOST),
     port: Number(process.env.SMTP_PORT) || 587,

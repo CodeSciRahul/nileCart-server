@@ -33,7 +33,7 @@ router.use("/reviews", reviewRoutes);
 router.use("/uploads", uploadRoutes);
 
 router.get("/health", (req, res) => {
-  res.json({ success: true, message: "LightCollection API is running" });
+  res.json({ success: true, message: "NileCart API is running" });
 });
 
 export default router;
