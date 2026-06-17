@@ -6,6 +6,7 @@ import Product from "../models/Product.model.js";
 import Banner from "../models/Banner.model.js";
 import Announcement from "../models/Announcement.model.js";
 import Coupon from "../models/Coupon.model.js";
+import CouponRedemption from "../models/CouponRedemption.model.js";
 import User from "../models/User.model.js";
 import Seller from "../models/Seller.model.js";
 
@@ -33,6 +34,7 @@ const seed = async () => {
     Banner.deleteMany({}),
     Announcement.deleteMany({}),
     Coupon.deleteMany({}),
+    CouponRedemption.deleteMany({}),
   ]);
 
   const createdCategories = await Category.insertMany(categories);
@@ -142,6 +144,21 @@ const seed = async () => {
     minOrderAmount: 999,
     maxDiscount: 500,
     usageLimit: 1000,
+    maxUsesPerUser: 3,
+    eligibleUserType: "all",
+    sponsoredBy: "platform",
+  });
+
+  await Coupon.create({
+    code: "WELCOME400",
+    description: "Flat ₹400 off on your first order above ₹999",
+    discountType: "flat",
+    discountValue: 400,
+    minOrderAmount: 999,
+    maxUsesPerUser: 1,
+    eligibleUserType: "new",
+    restoreOnCancel: false,
+    sponsoredBy: "platform",
   });
 
   console.log("Seed completed successfully");

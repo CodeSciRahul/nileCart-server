@@ -12,6 +12,11 @@ import {
   calculateShippingFee,
   FREE_SHIPPING_THRESHOLD,
 } from "../utils/orderHelpers.js";
+import {
+  resolveCouponDiscount,
+  recordCouponRedemption,
+  restoreCouponOnCancel,
+} from "../utils/couponHelpers.js";
 
 const buildOrderFromCart = async (userId, { addressId, paymentMethod = "cod" }) => {
   const cart = await Cart.findOne({ user: userId }).populate("items.product");
@@ -24,7 +29,7 @@ const buildOrderFromCart = async (userId, { addressId, paymentMethod = "cod" }) 
     throw Object.assign(new Error("Shipping address is required"), { statusCode: 400 });
   }
 
-  const coupon = cart.coupon ? await Coupon.findById(cart.coupon) : null;
+  const coupon = cart?.coupon ? await Coupon.findById(cart.coupon) : null;
   const orderItems = [];
   let subtotal = 0;
 
@@ -65,17 +70,13 @@ const buildOrderFromCart = async (userId, { addressId, paymentMethod = "cod" }) 
 
   let discount = 0;
   let couponCode;
-  if (coupon?.isActive && subtotal >= (coupon.minOrderAmount || 0)) {
+  if (coupon) {
+    const couponResult = await resolveCouponDiscount(coupon, {
+      userId,
+      items: cart.items,
+    });
+    discount = couponResult.discount;
     couponCode = coupon.code;
-    if (coupon.discountType === "percentage") {
-      discount = (subtotal * coupon.discountValue) / 100;
-      if (coupon.maxDiscount) discount = Math.min(discount, coupon.maxDiscount);
-    } else {
-      discount = coupon.discountValue;
-    }
-    discount = Math.min(discount, subtotal);
-    coupon.usedCount += 1;
-    await coupon.save();
   }
 
   const afterDiscount = subtotal - discount;
@@ -104,6 +105,15 @@ const buildOrderFromCart = async (userId, { addressId, paymentMethod = "cod" }) 
     couponCode,
     statusHistory: [{ status: "placed", note: "Order placed successfully" }],
   });
+
+  if (coupon && couponCode) {
+    await recordCouponRedemption({
+      userId,
+      coupon,
+      orderId: order._id,
+      discountAmount: discount,
+    });
+  }
 
   cart.items = [];
   cart.coupon = undefined;
@@ -180,6 +190,7 @@ export const cancelOrder = asyncHandler(async (req, res) => {
     note: order.cancelReason,
   });
 
+  await restoreCouponOnCancel(order);
   await order.save();
   sendSuccess(res, { order });
 });
@@ -318,7 +329,10 @@ export const updateAdminOrderStatus = asyncHandler(async (req, res) => {
   });
 
   if (status === "delivered") order.deliveredAt = new Date();
-  if (status === "cancelled") order.cancelledAt = new Date();
+  if (status === "cancelled") {
+    order.cancelledAt = new Date();
+    await restoreCouponOnCancel(order);
+  }
 
   await order.save();
   sendSuccess(res, { order });

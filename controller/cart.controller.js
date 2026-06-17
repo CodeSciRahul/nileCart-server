@@ -5,11 +5,16 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendSuccess, sendError } from "../utils/apiResponse.js";
 import { findVariant } from "../utils/productHelpers.js";
 import { FREE_SHIPPING_THRESHOLD } from "../utils/orderHelpers.js";
+import {
+  calculateCouponDiscount,
+  calculateEligibleSubtotal,
+  resolveCouponDiscount,
+} from "../utils/couponHelpers.js";
 
 const populateCart = async (userId) => {
   let cart = await Cart.findOne({ user: userId }).populate({
     path: "items.product",
-    select: "title slug images variants isActive",
+    select: "title slug images variants isActive seller category",
   });
 
   if (!cart) {
@@ -19,7 +24,10 @@ const populateCart = async (userId) => {
   return cart;
 };
 
-const calculateCartTotals = (items, coupon) => {
+const loadCartCoupon = async (cart) =>
+  cart?.coupon ? await Coupon.findById(cart.coupon) : null;
+
+const calculateCartTotals = (items, coupon = null) => {
   let subtotal = 0;
   const validItems = [];
 
@@ -41,13 +49,8 @@ const calculateCartTotals = (items, coupon) => {
 
   let discount = 0;
   if (coupon?.isActive) {
-    if (coupon.discountType === "percentage") {
-      discount = (subtotal * coupon.discountValue) / 100;
-      if (coupon.maxDiscount) discount = Math.min(discount, coupon.maxDiscount);
-    } else {
-      discount = coupon.discountValue;
-    }
-    discount = Math.min(discount, subtotal);
+    const eligibleSubtotal = calculateEligibleSubtotal(items, coupon);
+    discount = calculateCouponDiscount(coupon, eligibleSubtotal);
   }
 
   const afterDiscount = subtotal - discount;
@@ -55,7 +58,6 @@ const calculateCartTotals = (items, coupon) => {
   const total = afterDiscount + shippingFee;
 
   return {
-    // items: validItems,
     subtotal,
     discount,
     shippingFee,
@@ -65,11 +67,16 @@ const calculateCartTotals = (items, coupon) => {
   };
 };
 
+const buildCartResponse = async (cart) => {
+  const coupon = await loadCartCoupon(cart);
+  const totals = calculateCartTotals(cart.items, coupon);
+  return { cart, ...totals, coupon };
+};
+
 export const getCart = asyncHandler(async (req, res) => {
   const cart = await populateCart(req.user._id);
-  const coupon = cart.coupon ? await Coupon.findById(cart.coupon) : null;
-  const totals = calculateCartTotals(cart.items, coupon)
-  sendSuccess(res, { cart, ...totals, coupon });
+  const response = await buildCartResponse(cart);
+  sendSuccess(res, response);
 });
 
 export const addToCart = asyncHandler(async (req, res) => {
@@ -91,8 +98,6 @@ export const addToCart = asyncHandler(async (req, res) => {
       String(i.product?._id) === String(productId) &&
       String(i.variantSku) === String(variantSku)
   );
-  console.log("cart", cart)
-  console.log("existing", existing)
 
   if (existing) {
     existing.quantity += quantity;
@@ -102,9 +107,8 @@ export const addToCart = asyncHandler(async (req, res) => {
 
   await cart.save();
   const updated = await populateCart(req.user._id);
-  const totals = calculateCartTotals(updated.items, null);
-
-  sendSuccess(res, { cart: updated, ...totals }, 201);
+  const response = await buildCartResponse(updated);
+  sendSuccess(res, response, 201);
 });
 
 export const updateCartItem = asyncHandler(async (req, res) => {
@@ -121,7 +125,8 @@ export const updateCartItem = asyncHandler(async (req, res) => {
 
   await cart.save();
   const updated = await populateCart(req.user._id);
-  sendSuccess(res, { cart: updated, ...calculateCartTotals(updated.items, null) });
+  const response = await buildCartResponse(updated);
+  sendSuccess(res, response);
 });
 
 export const removeFromCart = asyncHandler(async (req, res) => {
@@ -133,7 +138,8 @@ export const removeFromCart = asyncHandler(async (req, res) => {
   await cart.save();
 
   const updated = await populateCart(req.user._id);
-  sendSuccess(res, { cart: updated, ...calculateCartTotals(updated.items, null) });
+  const response = await buildCartResponse(updated);
+  sendSuccess(res, response);
 });
 
 export const clearCart = asyncHandler(async (req, res) => {
@@ -142,6 +148,15 @@ export const clearCart = asyncHandler(async (req, res) => {
   cart.coupon = undefined;
   await cart.save();
   sendSuccess(res, { cart });
+});
+
+export const removeCouponFromCart = asyncHandler(async (req, res) => {
+  const cart = await populateCart(req.user._id);
+  cart.coupon = undefined;
+  await cart.save();
+
+  const response = await buildCartResponse(cart);
+  sendSuccess(res, response);
 });
 
 export const applyCouponToCart = asyncHandler(async (req, res) => {
@@ -154,17 +169,19 @@ export const applyCouponToCart = asyncHandler(async (req, res) => {
   if (!coupon) return sendError(res, "Invalid coupon", 404);
 
   const cart = await populateCart(req.user._id);
-  const totals = calculateCartTotals(cart.items, coupon);
 
-  if (totals.subtotal < (coupon.minOrderAmount || 0)) {
-    return sendError(
-      res,
-      `Minimum order amount is ₹${coupon.minOrderAmount}`
-    );
+  try {
+    await resolveCouponDiscount(coupon, {
+      userId: req.user._id,
+      items: cart.items,
+    });
+  } catch (err) {
+    return sendError(res, err.message, err.statusCode || 400);
   }
 
   cart.coupon = coupon._id;
   await cart.save();
 
-  sendSuccess(res, { cart, ...totals, coupon });
+  const response = await buildCartResponse(cart);
+  sendSuccess(res, response);
 });

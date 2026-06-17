@@ -1,6 +1,13 @@
 import Coupon from "../models/Coupon.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendSuccess, sendError } from "../utils/apiResponse.js";
+import {
+  assertCouponForUser,
+  calculateCouponDiscount,
+} from "../utils/couponHelpers.js";
+
+const couponErrorResponse = (res, err) =>
+  sendError(res, err.message, err.statusCode || 400);
 
 export const validateCoupon = asyncHandler(async (req, res) => {
   const { code, orderAmount = 0 } = req.body;
@@ -11,30 +18,33 @@ export const validateCoupon = asyncHandler(async (req, res) => {
 
   if (!coupon) return sendError(res, "Invalid coupon code", 404);
 
-  const now = new Date();
-  if (coupon.startsAt && coupon.startsAt > now) {
-    return sendError(res, "Coupon not yet active");
-  }
-  if (coupon.endsAt && coupon.endsAt < now) {
-    return sendError(res, "Coupon expired");
-  }
-  if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
-    return sendError(res, "Coupon usage limit reached");
-  }
-  if (orderAmount < (coupon.minOrderAmount || 0)) {
-    return sendError(
-      res,
-      `Minimum order amount is ₹${coupon.minOrderAmount}`
-    );
+  try {
+    if (req.user) {
+      await assertCouponForUser(coupon, req.user._id);
+    } else {
+      const now = new Date();
+      if (coupon.startsAt && coupon.startsAt > now) {
+        return sendError(res, "Coupon not yet active");
+      }
+      if (coupon.endsAt && coupon.endsAt < now) {
+        return sendError(res, "Coupon expired");
+      }
+      if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
+        return sendError(res, "Coupon usage limit reached");
+      }
+    }
+
+    if (orderAmount < (coupon.minOrderAmount || 0)) {
+      return sendError(
+        res,
+        `Minimum order amount is ₹${coupon.minOrderAmount}`
+      );
+    }
+  } catch (err) {
+    return couponErrorResponse(res, err);
   }
 
-  let discount = 0;
-  if (coupon.discountType === "percentage") {
-    discount = (orderAmount * coupon.discountValue) / 100;
-    if (coupon.maxDiscount) discount = Math.min(discount, coupon.maxDiscount);
-  } else {
-    discount = coupon.discountValue;
-  }
+  const discount = calculateCouponDiscount(coupon, orderAmount);
 
   sendSuccess(res, {
     coupon: {
@@ -42,6 +52,8 @@ export const validateCoupon = asyncHandler(async (req, res) => {
       description: coupon.description,
       discountType: coupon.discountType,
       discountValue: coupon.discountValue,
+      maxUsesPerUser: coupon.maxUsesPerUser,
+      eligibleUserType: coupon.eligibleUserType,
     },
     discount: Math.min(discount, orderAmount),
   });
@@ -52,7 +64,7 @@ export const listCoupons = asyncHandler(async (req, res) => {
   sendSuccess(res, { coupons });
 });
 
-export const createCoupon = asyncHandler(async (req, res) => {
+const buildCouponPayload = (body) => {
   const {
     code,
     description,
@@ -61,26 +73,45 @@ export const createCoupon = asyncHandler(async (req, res) => {
     minOrderAmount,
     maxDiscount,
     usageLimit,
+    maxUsesPerUser,
+    restoreOnCancel,
+    eligibleUserType,
+    sponsoredBy,
+    seller,
+    applicableCategories,
+    applicableProducts,
     startsAt,
     endsAt,
-  } = req.body;
+  } = body;
 
-  if (!code || !discountType || discountValue === undefined) {
-    return sendError(res, "code, discountType, and discountValue are required");
-  }
-
-  const coupon = await Coupon.create({
-    code: code.toUpperCase(),
+  return {
+    code: code?.toUpperCase(),
     description,
     discountType,
     discountValue,
     minOrderAmount,
     maxDiscount,
     usageLimit,
+    maxUsesPerUser,
+    restoreOnCancel,
+    eligibleUserType,
+    sponsoredBy,
+    seller,
+    applicableCategories,
+    applicableProducts,
     startsAt,
     endsAt,
-  });
+  };
+};
 
+export const createCoupon = asyncHandler(async (req, res) => {
+  const { code, discountType, discountValue } = req.body;
+
+  if (!code || !discountType || discountValue === undefined) {
+    return sendError(res, "code, discountType, and discountValue are required");
+  }
+
+  const coupon = await Coupon.create(buildCouponPayload(req.body));
   sendSuccess(res, { coupon }, 201);
 });
 
@@ -95,6 +126,13 @@ export const updateCoupon = asyncHandler(async (req, res) => {
     "minOrderAmount",
     "maxDiscount",
     "usageLimit",
+    "maxUsesPerUser",
+    "restoreOnCancel",
+    "eligibleUserType",
+    "sponsoredBy",
+    "seller",
+    "applicableCategories",
+    "applicableProducts",
     "startsAt",
     "endsAt",
   ];
@@ -104,6 +142,10 @@ export const updateCoupon = asyncHandler(async (req, res) => {
   });
 
   if (req.body.code) coupon.code = req.body.code.toUpperCase();
+
+  if (req.body.seller !== undefined) {
+    coupon.seller = req.body.seller || undefined;
+  }
 
   await coupon.save();
   sendSuccess(res, { coupon });
