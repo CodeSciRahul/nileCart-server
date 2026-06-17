@@ -15,8 +15,12 @@ export const getNodemailerTransport = () => {
       host,
       port,
       secure,
+      // Some hosts (common on VPS) don't have IPv6 egress; Gmail often resolves to IPv6 first.
+      // For SMTP, prefer IPv4 to avoid ENETUNREACH to 2607:f8b0:*.
+      family: 4,
       auth: { user, pass },
     });
+    console.log("Nodemailer transport created successfully")
   }
 
   return transport;
