@@ -129,7 +129,7 @@ const matchesPriceRange = (product, minPrice, maxPrice) => {
 };
 
 export const getCategories = asyncHandler(async (req, res) => {
-  const { navOnly, includeInactive, tree, parentId, rootsOnly } = req.query;
+  const { navOnly, includeInactive, tree, parentId, rootsOnly, subcategoriesOnly } = req.query;
   const filter = {};
 
   if (navOnly === "true") filter.showInNav = true;
@@ -139,6 +139,10 @@ export const getCategories = asyncHandler(async (req, res) => {
     filter.parent = parentId;
   } else if (rootsOnly === "true") {
     filter.parent = null;
+  }
+
+  if (subcategoriesOnly === "true") {
+    filter.parent = { $ne: null };
   }
 
   const categories = await Category.find(filter)
