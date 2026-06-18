@@ -107,6 +107,7 @@ export const loginSeller = asyncHandler(async (req, res) => {
     }
     const normalizedEmail = assertValidEmail(decoded.email);
     let user = await resolveUserFromFirebase(decoded);
+    console.log("user1", user)
     const googleSignIn = isGoogleSignIn(decoded);
     if (!user) {
       if (!googleSignIn) {
@@ -123,10 +124,13 @@ export const loginSeller = asyncHandler(async (req, res) => {
       user = await assertCanAccessSellerAuth(user);
     }
 
-    if (!user.isVerified && !googleSignIn) {
+    console.log("user2", user)
+    console.log("googleSignIn", googleSignIn)
+    console.log("user.isVerified", user.isVerified)
+    if (!user?.isVerified && !googleSignIn) {
       const otp = await saveEmailOtp(normalizedEmail);
       console.log("otp", otp)
-      const response = await sendSellerVerificationOtp(normalizedEmail, otp);
+      // const response = await sendSellerVerificationOtp(normalizedEmail, otp);
       return sendError(
         res,
         `Please verify your email before signing in. ${OTP_SENT_MESSAGE}`,

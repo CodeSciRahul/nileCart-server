@@ -249,9 +249,11 @@ export const getSellerOrders = asyncHandler(async (req, res) => {
 
 export const getSellerOrderById = asyncHandler(async (req, res) => {
   const productIds = await getSellerProductIds(req.seller._id);
+  console.log("productIds", productIds)
   const order = await Order.findById(req.params.id)
     .populate("user", "name email mobileNumber")
     .populate("items.product", "title slug seller");
+    console.log("order", order)
 
   if (!order || !orderContainsSellerProducts(order, productIds)) {
     return sendError(res, "Order not found", 404);
