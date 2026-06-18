@@ -6,6 +6,7 @@ import {
   logout,
   getProfile,
   updateProfile,
+  deleteAccount,
 } from "../controller/user.controller.js";
 import {
   sendSellerSignupOtp,
@@ -25,5 +26,6 @@ router.post("/login/admin", loginAdmin);
 router.post("/logout", logout);
 router.get("/me", protect, getProfile);
 router.put("/me", protect, updateProfile);
+router.delete("/me", protect, deleteAccount);
 
 export default router;

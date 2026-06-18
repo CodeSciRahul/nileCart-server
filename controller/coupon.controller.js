@@ -64,6 +64,28 @@ export const listCoupons = asyncHandler(async (req, res) => {
   sendSuccess(res, { coupons });
 });
 
+export const getPublicCoupons = asyncHandler(async (req, res) => {
+  const now = new Date();
+  const coupons = await Coupon.find({
+    isActive: true,
+    sponsoredBy: "platform",
+    $and: [
+      { $or: [{ startsAt: null }, { startsAt: { $lte: now } }] },
+      { $or: [{ endsAt: null }, { endsAt: { $gte: now } }] },
+    ],
+  })
+    .select(
+      "code description discountType discountValue minOrderAmount maxDiscount eligibleUserType maxUsesPerUser usageLimit usedCount"
+    )
+    .sort("-createdAt");
+
+  const available = coupons.filter(
+    (coupon) => !coupon.usageLimit || coupon.usedCount < coupon.usageLimit
+  );
+
+  sendSuccess(res, { coupons: available });
+});
+
 const buildCouponPayload = (body) => {
   const {
     code,

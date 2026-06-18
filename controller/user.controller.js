@@ -208,3 +208,34 @@ export const logout = asyncHandler(async (req, res) => {
   res.clearCookie("token");
   sendSuccess(res, { message: "Logged out" });
 });
+
+export const deleteAccount = asyncHandler(async (req, res) => {
+  if (req.user.role !== "customer") {
+    return sendError(
+      res,
+      "This account cannot be deleted from the storefront. Contact support.",
+      403
+    );
+  }
+
+  const userId = req.user._id;
+
+  req.user.isActive = false;
+  req.user.firebaseUid = `deleted_${userId}`;
+  if (req.user.email) {
+    req.user.email = `deleted_${userId}@deleted.nilecart.local`;
+  }
+  req.user.mobileNumber = undefined;
+  req.user.name = "Deleted User";
+  req.user.isMobileVerified = false;
+
+  await req.user.save();
+
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: appConfig.isProduction,
+    sameSite: appConfig.isProduction ? "strict" : "lax",
+  });
+
+  sendSuccess(res, { message: "Account deleted successfully" });
+});

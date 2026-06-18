@@ -43,7 +43,7 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    isVerified: {
+    isMobileVerified: {
       type: Boolean,
       default: false,
     },
