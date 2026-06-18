@@ -56,4 +56,5 @@ export const appConfig = {
     /** Optional CloudFront or custom CDN origin, e.g. https://cdn.example.com */
     publicUrlBase: trim(process.env.AWS_S3_PUBLIC_URL),
   },
+  orderNumberPrefix: trim(process.env.ORDER_NUMBER_PREFIX),
 };

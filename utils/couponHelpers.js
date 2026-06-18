@@ -72,7 +72,7 @@ const assertCouponSchedule = (coupon) => {
 };
 
 const assertGlobalUsage = (coupon) => {
-  if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
+  if (coupon?.usageLimit && coupon?.usedCount >= coupon?.usageLimit) {
     throw couponError("Coupon usage limit reached");
   }
 };
@@ -92,19 +92,18 @@ const assertPerUserUsage = async (coupon, userId) => {
 };
 
 const assertUserEligibility = async (coupon, userId) => {
-  if (!userId || coupon.eligibleUserType === "all") return;
+  if (!userId || coupon?.eligibleUserType === "all") return;
 
   const deliveredCount = await Order.countDocuments({
     user: userId,
-    orderStatus: "delivered",
   });
 
-  if (coupon.eligibleUserType === "new" && deliveredCount > 0) {
-    throw couponError("This coupon is only for first-time customers");
+  if (coupon?.eligibleUserType === "new" && deliveredCount > 0) {
+    throw couponError("This coupon is only for first-time customers's orders");
   }
 
-  if (coupon.eligibleUserType === "returning" && deliveredCount === 0) {
-    throw couponError("This coupon is only for returning customers");
+  if (coupon?.eligibleUserType === "returning" && deliveredCount === 0) {
+    throw couponError("This coupon is only for returning customers's orders");
   }
 };
 
@@ -113,10 +112,10 @@ export const assertCouponForUser = async (coupon, userId) => {
     throw couponError("Invalid coupon", 404);
   }
 
-  assertCouponSchedule(coupon);
-  assertGlobalUsage(coupon);
-  await assertPerUserUsage(coupon, userId);
-  await assertUserEligibility(coupon, userId);
+  assertCouponSchedule(coupon); // check if the coupon is active and not expired
+  assertGlobalUsage(coupon); // check if the coupon has reached its usage limit
+  await assertPerUserUsage(coupon, userId); // check if the user has reached its usage limit
+  await assertUserEligibility(coupon, userId); // check if the user is eligible for the coupon
 };
 
 export const assertCouponUsable = async (coupon, { userId, items }) => {
