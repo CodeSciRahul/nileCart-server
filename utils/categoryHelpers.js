@@ -136,30 +136,34 @@ const formatNavCategory = (cat) => ({
   subcategories: (cat.children || []).map(formatNavSubcategory),
 });
 
-/** Structured nav payload: departments → categories → subcategories. */
+/** Structured nav payload: departments → parent categories → subcategories. */
 export const buildDepartmentNavigation = (categories) => {
   const tree = buildCategoryTree(categories);
-  const seen = new Set();
+  const parentsByDepartment = new Map();
 
-  return tree
-    .filter((node) => node.department)
-    .filter((node) => {
-      if (seen.has(node.department)) return false;
-      seen.add(node.department);
-      return true;
-    })
-    .sort(
-      (a, b) =>
-        DEPARTMENT_ORDER.indexOf(a.department) - DEPARTMENT_ORDER.indexOf(b.department) ||
-        (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
-    )
-    .map((dept) => ({
-      _id: dept._id,
-      name: dept.name,
-      slug: dept.slug,
-      department: dept.department,
-      label: (DEPARTMENT_LABELS[dept.department] || dept.department).toUpperCase(),
-      displayOrder: dept.displayOrder ?? 0,
-      categories: (dept.children || []).map(formatNavCategory),
-    }));
+  tree.forEach((node) => {
+    if (!node.department) return;
+
+    const parentId = node.parent?._id || node.parent;
+    if (parentId) return;
+
+    if (!parentsByDepartment.has(node.department)) {
+      parentsByDepartment.set(node.department, []);
+    }
+    parentsByDepartment.get(node.department).push(node);
+  });
+
+  const sortNavNodes = (a, b) =>
+    (a.displayOrder ?? 0) - (b.displayOrder ?? 0) || a.name.localeCompare(b.name);
+
+  return DEPARTMENT_ORDER.map((department) => {
+    const parents = (parentsByDepartment.get(department) || []).sort(sortNavNodes);
+
+    return {
+      department,
+      slug: department,
+      label: DEPARTMENT_LABELS[department] || department,
+      categories: parents.map(formatNavCategory),
+    };
+  });
 };

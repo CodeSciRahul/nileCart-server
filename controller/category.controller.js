@@ -134,12 +134,24 @@ export const getCategories = asyncHandler(async (req, res) => {
     navOnly,
     includeInactive,
     tree,
+    navigation,
     parentId,
     rootsOnly,
     subcategoriesOnly,
     department,
     departmentsOnly,
   } = req.query;
+
+  if (navigation === "true") {
+    const navFilter = { isActive: true, showInNav: true };
+    const navCategories = await Category.find(navFilter)
+      .sort({ displayOrder: 1, name: 1 })
+      .populate("parent", "name slug");
+
+    const formattedNav = navCategories.map(formatCategoryForPublic);
+    return sendSuccess(res, { departments: buildDepartmentNavigation(formattedNav) });
+  }
+
   const filter = {};
 
   if (navOnly === "true") filter.showInNav = true;
@@ -180,9 +192,10 @@ export const getCategories = asyncHandler(async (req, res) => {
 export const getCategoryNavigation = asyncHandler(async (req, res) => {
   const categories = await Category.find({ isActive: true, showInNav: true })
     .sort({ displayOrder: 1, name: 1 })
-    .select("name slug department parent displayOrder showInNav isActive");
+    .populate("parent", "name slug");
 
-  sendSuccess(res, { departments: buildDepartmentNavigation(categories) });
+  const formatted = categories.map(formatCategoryForPublic);
+  sendSuccess(res, { departments: buildDepartmentNavigation(formatted) });
 });
 
 export const getCategoryBySlug = asyncHandler(async (req, res) => {
