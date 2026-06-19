@@ -126,6 +126,7 @@ const formatNavSubcategory = (cat) => ({
   name: cat.name,
   slug: cat.slug,
   displayOrder: cat.displayOrder ?? 0,
+  image: cat.image || null,
 });
 
 const formatNavCategory = (cat) => ({
@@ -133,6 +134,7 @@ const formatNavCategory = (cat) => ({
   name: cat.name,
   slug: cat.slug,
   displayOrder: cat.displayOrder ?? 0,
+  image: cat.image || null,
   subcategories: (cat.children || []).map(formatNavSubcategory),
 });
 
