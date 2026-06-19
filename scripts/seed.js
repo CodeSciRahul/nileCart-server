@@ -10,18 +10,27 @@ import CouponRedemption from "../models/CouponRedemption.model.js";
 import User from "../models/User.model.js";
 import Seller from "../models/Seller.model.js";
 
-const categories = [
-  { name: "Tops", slug: "tops", image: "https://img105.savana.com/v1/2e2992df39904be6be0b37fa12f49855_w360.webp", displayOrder: 1, showInNav: true },
-  { name: "Bottoms", slug: "bottoms", image: "https://img105.savana.com/v1/d8eece4486724969bded3da88b84098a_w360.webp", displayOrder: 2, showInNav: true },
-  { name: "Dresses", slug: "dresses", image: "https://img105.savana.com/v1/51fd5601c16b49e99a1ed4d35bf76f33_w360.webp", displayOrder: 3, showInNav: true },
-  { name: "Accessories", slug: "accessories", image: "https://img105.savana.com/v1/4e09cf5cf45d4493814ef48ca2d71bbc_w360.webp", displayOrder: 4, showInNav: true },
-  { name: "Bags", slug: "bags", image: "https://img105.savana.com/v1/c4d729bdfaa14786986463f4880b655a_w360.webp", displayOrder: 5, showInNav: true },
-  { name: "Jewellery", slug: "jewellery", image: "https://img105.savana.com/v1/60c7d9a9d613402f881b04649143869d_w360.webp", displayOrder: 6, showInNav: true },
-  { name: "Beauty", slug: "beauty", image: "https://img105.savana.com/v1/de890efbd67d4122b4ce9046f9a641b3_w360.webp", displayOrder: 7, showInNav: true },
-  { name: "Swimwear", slug: "swimwear", image: "https://img105.savana.com/v1/0c5516debdd547d3a946cc6087a75e89_w360.webp", displayOrder: 8, showInNav: true },
-  { name: "Sports & Gym", slug: "sports-gym", image: "https://img105.savana.com/v1/e02d1551119b44de9eff5d5e6dc7cdef_w360.webp", displayOrder: 9, showInNav: true },
-  { name: "Lingerie", slug: "lingerie", displayOrder: 10, showInNav: true },
-  { name: "Sale", slug: "sale", displayOrder: 11, showInNav: true },
+const departments = [
+  { name: "Men", slug: "men", department: "men", displayOrder: 1, showInNav: true },
+  { name: "Women", slug: "women", department: "women", displayOrder: 2, showInNav: true },
+  { name: "Kids", slug: "kids", department: "kids", displayOrder: 3, showInNav: true },
+  { name: "Sports", slug: "sports", department: "sports", displayOrder: 4, showInNav: true },
+];
+
+const subcategories = [
+  { name: "Tops", slug: "tops", parentSlug: "women", image: "https://img105.savana.com/v1/2e2992df39904be6be0b37fa12f49855_w360.webp", displayOrder: 1, showInNav: true },
+  { name: "Bottoms", slug: "bottoms", parentSlug: "women", image: "https://img105.savana.com/v1/d8eece4486724969bded3da88b84098a_w360.webp", displayOrder: 2, showInNav: true },
+  { name: "Dresses", slug: "dresses", parentSlug: "women", image: "https://img105.savana.com/v1/51fd5601c16b49e99a1ed4d35bf76f33_w360.webp", displayOrder: 3, showInNav: true },
+  { name: "Accessories", slug: "accessories", parentSlug: "women", image: "https://img105.savana.com/v1/4e09cf5cf45d4493814ef48ca2d71bbc_w360.webp", displayOrder: 4, showInNav: true },
+  { name: "Bags", slug: "bags", parentSlug: "women", image: "https://img105.savana.com/v1/c4d729bdfaa14786986463f4880b655a_w360.webp", displayOrder: 5, showInNav: true },
+  { name: "Jewellery", slug: "jewellery", parentSlug: "women", image: "https://img105.savana.com/v1/60c7d9a9d613402f881b04649143869d_w360.webp", displayOrder: 6, showInNav: true },
+  { name: "Beauty", slug: "beauty", parentSlug: "women", image: "https://img105.savana.com/v1/de890efbd67d4122b4ce9046f9a641b3_w360.webp", displayOrder: 7, showInNav: true },
+  { name: "Swimwear", slug: "swimwear", parentSlug: "women", image: "https://img105.savana.com/v1/0c5516debdd547d3a946cc6087a75e89_w360.webp", displayOrder: 8, showInNav: true },
+  { name: "Lingerie", slug: "lingerie", parentSlug: "women", displayOrder: 9, showInNav: true },
+  { name: "Tops", slug: "mens-tops", parentSlug: "men", displayOrder: 1, showInNav: true },
+  { name: "Bottoms", slug: "mens-bottoms", parentSlug: "men", displayOrder: 2, showInNav: true },
+  { name: "Sports & Gym", slug: "sports-gym", parentSlug: "sports", image: "https://img105.savana.com/v1/e02d1551119b44de9eff5d5e6dc7cdef_w360.webp", displayOrder: 1, showInNav: true },
+  { name: "Sale", slug: "sale", parentSlug: "women", displayOrder: 10, showInNav: true },
 ];
 
 const seed = async () => {
@@ -37,7 +46,16 @@ const seed = async () => {
     CouponRedemption.deleteMany({}),
   ]);
 
-  const createdCategories = await Category.insertMany(categories);
+  const createdDepartments = await Category.insertMany(departments);
+  const deptMap = Object.fromEntries(createdDepartments.map((d) => [d.slug, d]));
+
+  const categoryDocs = subcategories.map(({ parentSlug, ...rest }) => ({
+    ...rest,
+    parent: deptMap[parentSlug]._id,
+    department: deptMap[parentSlug].department,
+  }));
+
+  const createdCategories = await Category.insertMany(categoryDocs);
   const catMap = Object.fromEntries(createdCategories.map((c) => [c.slug, c._id]));
 
   const brand = await Brand.create({ name: "Savana", slug: "savana" });
@@ -65,6 +83,7 @@ const seed = async () => {
       slug: "floral-print-mini-dress",
       category: catMap.dresses,
       brand: brand._id,
+      gender: "Women",
       images: ["https://img105.savana.com/v1/goods-pic/3ad692c3126941d8829be475358c59ca_w360.webp"],
       isTrending: true,
       isOnSale: true,
@@ -79,6 +98,7 @@ const seed = async () => {
       slug: "ribbed-crop-top",
       category: catMap.tops,
       brand: brand._id,
+      gender: "Women",
       images: ["https://img105.savana.com/v1/goods-pic/b9ca5af623794f1d829d53ea896f67f9_w360.webp"],
       isTrending: true,
       variants: [
@@ -91,6 +111,7 @@ const seed = async () => {
       slug: "high-waist-cargo-pants",
       category: catMap.bottoms,
       brand: brand._id,
+      gender: "Women",
       images: ["https://img105.savana.com/v1/goods-pic/a5b86c309e7b4335a5fdf9d29ef6b121_w360.webp"],
       variants: [
         { sku: "BTM-001-M", size: "M", color: "Khaki", stock: 18, price: 1724, mrp: 2299, images: [] },
@@ -102,6 +123,7 @@ const seed = async () => {
       slug: "premium-handbag",
       category: catMap.bags,
       brand: brand._id,
+      gender: "Women",
       images: ["https://img105.savana.com/v1/goods-pic/2808ac17f0b84b16842a26f21b8a583e_w360.webp"],
       isTrending: true,
       isOnSale: true,

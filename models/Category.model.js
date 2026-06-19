@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { storedImageSchema } from "./schemas/storedImage.schema.js";
+import { DEPARTMENT_VALUES } from "../constants/departments.js";
 
 const categorySchema = new mongoose.Schema(
   {
@@ -21,6 +22,11 @@ const categorySchema = new mongoose.Schema(
       ref: "Category",
       default: null,
     },
+    department: {
+      type: String,
+      enum: DEPARTMENT_VALUES,
+      default: null,
+    },
     displayOrder: {
       type: Number,
       default: 0,
@@ -38,6 +44,7 @@ const categorySchema = new mongoose.Schema(
 );
 
 categorySchema.index({ parent: 1, isActive: 1, displayOrder: 1 });
+categorySchema.index({ department: 1, isActive: 1, displayOrder: 1 });
 
 const Category = mongoose.model("Category", categorySchema);
 export default Category;

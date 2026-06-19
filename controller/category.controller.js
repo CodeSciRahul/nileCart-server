@@ -8,18 +8,16 @@ import {
   buildCategoryTree,
   validateCategoryParent,
   deactivateCategoryChildren,
+  resolveCategoryDepartment,
+  buildDepartmentNavigation,
 } from "../utils/categoryHelpers.js";
+import { GENDER_BY_DEPARTMENT } from "../constants/departments.js";
 import { formatProductCard } from "../utils/productHelpers.js";
 import {
   formatCategoryForDashboard,
   formatCategoryForPublic,
   normalizeStoredImage,
 } from "../utils/storedImageHelpers.js";
-
-const GENDER_BY_DEPARTMENT = {
-  men: "Men",
-  women: "Women",
-};
 
 const splitCsv = (value) =>
   String(value || "")
@@ -82,8 +80,11 @@ const resolveCategoryShopScope = async (slug) => {
 
   const filter = { isActive: true, category: { $in: categoryIds } };
 
-  if (children.length && GENDER_BY_DEPARTMENT[category.slug]) {
-    filter.gender = GENDER_BY_DEPARTMENT[category.slug];
+  if (children.length) {
+    const dept = category.department || category.slug;
+    if (GENDER_BY_DEPARTMENT[dept]) {
+      filter.gender = GENDER_BY_DEPARTMENT[dept];
+    }
   }
 
   return { category, children, filter };
@@ -129,16 +130,32 @@ const matchesPriceRange = (product, minPrice, maxPrice) => {
 };
 
 export const getCategories = asyncHandler(async (req, res) => {
-  const { navOnly, includeInactive, tree, parentId, rootsOnly, subcategoriesOnly } = req.query;
+  const {
+    navOnly,
+    includeInactive,
+    tree,
+    parentId,
+    rootsOnly,
+    subcategoriesOnly,
+    department,
+    departmentsOnly,
+  } = req.query;
   const filter = {};
 
   if (navOnly === "true") filter.showInNav = true;
   if (includeInactive !== "true") filter.isActive = true;
 
+  if (department) filter.department = department;
+
   if (parentId) {
     filter.parent = parentId;
   } else if (rootsOnly === "true") {
     filter.parent = null;
+  }
+
+  if (departmentsOnly === "true") {
+    filter.parent = null;
+    filter.department = { $ne: null };
   }
 
   if (subcategoriesOnly === "true") {
@@ -158,6 +175,14 @@ export const getCategories = asyncHandler(async (req, res) => {
   }
 
   sendSuccess(res, { categories: formatted });
+});
+
+export const getCategoryNavigation = asyncHandler(async (req, res) => {
+  const categories = await Category.find({ isActive: true, showInNav: true })
+    .sort({ displayOrder: 1, name: 1 })
+    .select("name slug department parent displayOrder showInNav isActive");
+
+  sendSuccess(res, { departments: buildDepartmentNavigation(categories) });
 });
 
 export const getCategoryBySlug = asyncHandler(async (req, res) => {
@@ -227,10 +252,11 @@ export const getCategoryShop = asyncHandler(async (req, res) => {
 });
 
 export const createCategory = asyncHandler(async (req, res) => {
-  const { name, image, description, parent, displayOrder, showInNav } = req.body;
+  const { name, image, description, parent, displayOrder, showInNav, department } = req.body;
   if (!name) return sendError(res, "Category name is required");
 
   const parentId = await validateCategoryParent(parent);
+  const resolvedDepartment = await resolveCategoryDepartment(parentId, department);
 
   const category = await Category.create({
     name,
@@ -238,6 +264,7 @@ export const createCategory = asyncHandler(async (req, res) => {
     image: normalizeStoredImage(image),
     description,
     parent: parentId,
+    department: resolvedDepartment,
     displayOrder,
     showInNav,
   });
@@ -255,6 +282,12 @@ export const updateCategory = asyncHandler(async (req, res) => {
 
   if (req.body.parent !== undefined) {
     category.parent = await validateCategoryParent(req.body.parent, category._id);
+    category.department = await resolveCategoryDepartment(
+      category.parent,
+      req.body.department ?? category.department
+    );
+  } else if (req.body.department !== undefined && !category.parent) {
+    category.department = await resolveCategoryDepartment(null, req.body.department);
   }
 
   const allowed = ["name", "image", "description", "displayOrder", "showInNav", "isActive"];

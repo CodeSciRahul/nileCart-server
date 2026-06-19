@@ -1,4 +1,9 @@
 import Category from "../models/Category.model.js";
+import {
+  DEPARTMENT_VALUES,
+  DEPARTMENT_LABELS,
+  DEPARTMENT_ORDER,
+} from "../constants/departments.js";
 
 const toPlain = (doc) => (doc?.toObject ? doc.toObject() : { ...doc });
 
@@ -86,4 +91,75 @@ export const validateCategoryParent = async (parentId, categoryId = null) => {
 
 export const deactivateCategoryChildren = async (parentId) => {
   await Category.updateMany({ parent: parentId }, { isActive: false });
+};
+
+export const resolveCategoryDepartment = async (parentId, department) => {
+  const normalizedParent = normalizeParentId(parentId);
+
+  if (normalizedParent) {
+    const parent = await Category.findById(normalizedParent).select("department");
+    if (!parent) {
+      const err = new Error("Parent category not found.");
+      err.statusCode = 404;
+      throw err;
+    }
+    return parent.department || null;
+  }
+
+  if (!department) {
+    const err = new Error("Department is required for top-level categories.");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!DEPARTMENT_VALUES.includes(department)) {
+    const err = new Error(`Invalid department. Must be one of: ${DEPARTMENT_VALUES.join(", ")}`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  return department;
+};
+
+const formatNavSubcategory = (cat) => ({
+  _id: cat._id,
+  name: cat.name,
+  slug: cat.slug,
+  displayOrder: cat.displayOrder ?? 0,
+});
+
+const formatNavCategory = (cat) => ({
+  _id: cat._id,
+  name: cat.name,
+  slug: cat.slug,
+  displayOrder: cat.displayOrder ?? 0,
+  subcategories: (cat.children || []).map(formatNavSubcategory),
+});
+
+/** Structured nav payload: departments → categories → subcategories. */
+export const buildDepartmentNavigation = (categories) => {
+  const tree = buildCategoryTree(categories);
+  const seen = new Set();
+
+  return tree
+    .filter((node) => node.department)
+    .filter((node) => {
+      if (seen.has(node.department)) return false;
+      seen.add(node.department);
+      return true;
+    })
+    .sort(
+      (a, b) =>
+        DEPARTMENT_ORDER.indexOf(a.department) - DEPARTMENT_ORDER.indexOf(b.department) ||
+        (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
+    )
+    .map((dept) => ({
+      _id: dept._id,
+      name: dept.name,
+      slug: dept.slug,
+      department: dept.department,
+      label: (DEPARTMENT_LABELS[dept.department] || dept.department).toUpperCase(),
+      displayOrder: dept.displayOrder ?? 0,
+      categories: (dept.children || []).map(formatNavCategory),
+    }));
 };
