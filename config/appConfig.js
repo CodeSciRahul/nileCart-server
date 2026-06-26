@@ -57,4 +57,9 @@ export const appConfig = {
     publicUrlBase: trim(process.env.AWS_S3_PUBLIC_URL),
   },
   orderNumberPrefix: trim(process.env.ORDER_NUMBER_PREFIX),
+  flutterwave: {
+    publicKey: trim(process.env.FLUTTERWAVE_PUBLIC_KEY),
+    secretKey: trim(process.env.FLUTTERWAVE_SECRET_KEY),
+    encryptionKey: trim(process.env.FLUTTERWAVE_ENCRYPTION_KEY),
+  },
 };

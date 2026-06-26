@@ -14,9 +14,7 @@ initFirebaseAdmin();
 
 app.use(
   cors({
-    origin: [
-      appConfig.clientUrl.split(",")
-    ],
+    origin: appConfig.clientUrl.split(",").map((url) => url.trim()),
     credentials: true,
   })
 );
