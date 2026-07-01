@@ -124,8 +124,7 @@ export const loginSeller = asyncHandler(async (req, res) => {
     }
     if (!user?.isVerified && !googleSignIn) {
       const otp = await saveEmailOtp(normalizedEmail);
-      console.log("otp", otp)
-      // const response = await sendSellerVerificationOtp(normalizedEmail, otp);
+      await sendSellerVerificationOtp(normalizedEmail, otp);
       return sendError(
         res,
         `Please verify your email before signing in. ${OTP_SENT_MESSAGE}`,

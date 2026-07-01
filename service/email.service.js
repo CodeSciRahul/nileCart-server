@@ -13,19 +13,6 @@ const buildOtpHtml = (otp) => `
   </div>
 `;
 
-const sendViaNodemailer = async (email, otp) => {
-  const transport = getNodemailerTransport();
-  const from = appConfig.smtp.from;
-
-  const response = await transport.sendMail({
-    from,
-    to: email,
-    subject: OTP_SUBJECT,
-    html: buildOtpHtml(otp),
-  });
-  return response;
-};
-
 const sendViaResend = async (email, otp) => {
   const resend = getResendClient();
   const from = appConfig.resend.fromEmail;
@@ -45,18 +32,13 @@ const sendViaResend = async (email, otp) => {
 };
 
 export const sendSellerVerificationOtp = async (email, otp) => {
-  if (getNodemailerTransport()) {
-    const response = await sendViaNodemailer(email, otp);
-    return response;
+  const resend = getResendClient();
+  const from = appConfig.resend.fromEmail;
+
+  if (resend && from) {
+    await sendViaResend(email, otp);
+    return;
   }
-
-  // const resend = getResendClient();
-  // const from = appConfig.resend.fromEmail;
-
-  // if (resend && from) {
-  //   await sendViaResend(email, otp);
-  //   return;
-  // }
 
   if (appConfig.isDevelopment) {
     console.log(`[dev] Seller OTP for ${email}: ${otp}`);
