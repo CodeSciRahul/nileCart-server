@@ -21,6 +21,13 @@ export const errorHandler = (err, req, res, next) => {
     });
   }
 
+  if (err.statusCode && err.statusCode >= 400 && err.statusCode < 600) {
+    return res.status(err.statusCode).json({
+      success: false,
+      message: err.message || "Request failed",
+    });
+  }
+
   res.status(err.statusCode || 500).json({
     success: false,
     message: err.message || "Internal server error",

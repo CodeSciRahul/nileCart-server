@@ -12,11 +12,15 @@ const PORT = appConfig.port;
 
 initFirebaseAdmin();
 
+const allowedOrigins = [
+  appConfig.clientUrl,
+  appConfig.storefrontUrl,
+  ...(appConfig.clientUrl?.split(",").map((o) => o.trim()) || []),
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: [
-      appConfig.clientUrl.split(",")
-    ],
+    origin: allowedOrigins,
     credentials: true,
   })
 );

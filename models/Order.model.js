@@ -49,6 +49,20 @@ const orderSchema = new mongoose.Schema(
       enum: ["pending", "paid", "failed", "refunded"],
       default: "pending",
     },
+    flutterwave: {
+      txRef: { type: String, unique: true, sparse: true, index: true },
+      transactionId: String,
+      flwRef: String,
+      checkoutUrl: String,
+      channel: String,
+      currency: String,
+      paidAt: Date,
+      verifiedAt: Date,
+      lastVerificationSource: {
+        type: String,
+        enum: ["redirect", "webhook", "manual", "system"],
+      },
+    },
     orderStatus: {
       type: String,
       enum: [
