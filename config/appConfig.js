@@ -32,21 +32,6 @@ export const appConfig = {
     secret: trim(process.env.JWT_SECRET),
   },
 
-//   MTP_HOST=smtp.gmail.com
-// SMTP_PORT=587
-// SMTP_SECURE=false
-// SMTP_USER=rahulkumarkudra2004@gmail.com
-// SMTP_PASS=ynpm haje zvkb jyrg
-// SMTP_FROM="NileCart <rahulkumarkudra2004@gmail.com>"
-  smtp: {
-    host: trim(process.env.SMTP_HOST),
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: process.env.SMTP_SECURE === "true",
-    user: trim(process.env.SMTP_USER),
-    pass: process.env.SMTP_PASS,
-    from: process.env.SMTP_FROM || process.env.SMTP_USER,
-  },
-
   resend: {
     apiKey: trim(process.env.RESEND_API_KEY),
     fromEmail: trim(process.env.RESEND_FROM_EMAIL),
