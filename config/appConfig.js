@@ -9,6 +9,20 @@ export const appConfig = {
   isDevelopment: (process.env.NODE_ENV || "development") === "development",
 
   clientUrl: process.env.CLIENT_URL || "http://localhost:5173",
+  /** Next.js storefront origin — used for Flutterwave redirect URLs */
+  storefrontUrl:
+    trim(process.env.STOREFRONT_URL) ||
+    trim(process.env.NEXT_PUBLIC_STOREFRONT_URL) ||
+    "http://localhost:3000",
+
+  payment: {
+    currency: trim(process.env.PAYMENT_CURRENCY) || "UGX",
+    currencySymbol: trim(process.env.PAYMENT_CURRENCY_SYMBOL) || "UGX",
+    options:
+      trim(process.env.FLUTTERWAVE_PAYMENT_OPTIONS) ||
+      "card,mobilemoneyuganda,banktransfer",
+    logoUrl: trim(process.env.PAYMENT_LOGO_URL),
+  },
 
   mongodb: {
     uri: trim(process.env.MONGODB_URI),
@@ -61,5 +75,13 @@ export const appConfig = {
     publicKey: trim(process.env.FLUTTERWAVE_PUBLIC_KEY),
     secretKey: trim(process.env.FLUTTERWAVE_SECRET_KEY),
     encryptionKey: trim(process.env.FLUTTERWAVE_ENCRYPTION_KEY),
+    /** v4 OAuth — required for customers, payment methods, and charges */
+    clientId: trim(process.env.FLUTTERWAVE_CLIENT_ID),
+    clientSecret: trim(process.env.FLUTTERWAVE_CLIENT_SECRET),
+    webhookSecret: trim(process.env.FLUTTERWAVE_WEBHOOK_SECRET),
+    useSandbox:
+      process.env.FLUTTERWAVE_USE_SANDBOX !== undefined
+        ? process.env.FLUTTERWAVE_USE_SANDBOX === "true"
+        : (process.env.NODE_ENV || "development") !== "production",
   },
 };

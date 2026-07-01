@@ -1,130 +1,28 @@
 import Order from "../models/Order.model.js";
-import Cart from "../models/Cart.model.js";
 import Product from "../models/Product.model.js";
-import Address from "../models/Address.model.js";
-import Coupon from "../models/Coupon.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendSuccess, sendError } from "../utils/apiResponse.js";
-import { findVariant } from "../utils/productHelpers.js";
-import { getImageUrl } from "../utils/storedImageHelpers.js";
-import {
-  generateOrderNumber,
-  calculateShippingFee,
-  FREE_SHIPPING_THRESHOLD,
-} from "../utils/orderHelpers.js";
-import {
-  resolveCouponDiscount,
-  recordCouponRedemption,
-  restoreCouponOnCancel,
-} from "../utils/couponHelpers.js";
-
-const buildOrderFromCart = async (userId, { addressId, paymentMethod = "cod" }) => {
-  const cart = await Cart.findOne({ user: userId }).populate("items.product");
-  if (!cart?.items?.length) {
-    throw Object.assign(new Error("Cart is empty"), { statusCode: 400 });
-  }
-
-  const address = await Address.findOne({ _id: addressId, user: userId });
-  if (!address) {
-    throw Object.assign(new Error("Shipping address is required"), { statusCode: 400 });
-  }
-
-  const coupon = cart?.coupon ? await Coupon.findById(cart.coupon) : null;
-  const orderItems = [];
-  let subtotal = 0;
-
-  for (const item of cart.items) {
-    const product = item.product;
-    if (!product?.isActive) continue;
-
-    const variant = findVariant(product, item.variantSku);
-    if (!variant || variant.stock < item.quantity) {
-      throw Object.assign(
-        new Error(`${product.title} is out of stock`),
-        { statusCode: 400 }
-      );
-    }
-
-    const lineTotal = variant.price * item.quantity;
-    subtotal += lineTotal;
-
-    orderItems.push({
-      product: product._id,
-      variantSku: variant?.sku,
-      title: product.title,
-      size: variant.size,
-      color: variant.color,
-      image: getImageUrl(variant.images?.[0]) || getImageUrl(product.images?.[0]),
-      quantity: item.quantity,
-      price: variant.price,
-      mrp: variant.mrp,
-    });
-
-    variant.stock -= item.quantity;
-    await product.save();
-  }
-
-  if (!orderItems.length) {
-    throw Object.assign(new Error("No valid items in cart"), { statusCode: 400 });
-  }
-
-  let discount = 0;
-  let couponCode;
-  if (coupon) {
-    const couponResult = await resolveCouponDiscount(coupon, {
-      userId,
-      items: cart.items,
-    });
-    discount = couponResult.discount;
-    couponCode = coupon.code;
-  }
-
-  const afterDiscount = subtotal - discount;
-  const shippingFee = calculateShippingFee(afterDiscount);
-  const total = afterDiscount + shippingFee;
-
-  const order = await Order.create({
-    user: userId,
-    orderNumber: generateOrderNumber(),
-    items: orderItems,
-    shippingAddress: {
-      fullName: address.fullName,
-      mobileNumber: address.mobileNumber,
-      pincode: address.pincode,
-      addressLine: address.addressLine,
-      locality: address.locality,
-      city: address.city,
-      state: address.state,
-      country: address.country,
-    },
-    paymentMethod,
-    subtotal,
-    discount,
-    shippingFee,
-    total,
-    couponCode,
-    statusHistory: [{ status: "placed", note: "Order placed successfully" }],
-  });
-
-  if (coupon && couponCode) {
-    await recordCouponRedemption({
-      userId,
-      coupon,
-      orderId: order._id,
-      discountAmount: discount,
-    });
-  }
-
-  cart.items = [];
-  cart.coupon = undefined;
-  await cart.save();
-
-  return order;
-};
+import { FREE_SHIPPING_THRESHOLD } from "../utils/orderHelpers.js";
+import { buildOrderFromCart } from "../utils/orderBuilder.js";
+import { restoreOrderStock } from "../utils/paymentHelpers.js";
+import { restoreCouponOnCancel } from "../utils/couponHelpers.js";
 
 export const placeOrder = asyncHandler(async (req, res) => {
+  const { paymentMethod = "cod" } = req.body;
+
+  if (paymentMethod !== "cod") {
+    return sendError(
+      res,
+      "Online payments must be initiated via POST /payments/checkout",
+      400
+    );
+  }
+
   try {
-    const order = await buildOrderFromCart(req.user._id, req.body);
+    const order = await buildOrderFromCart(req.user._id, {
+      addressId: req.body.addressId,
+      paymentMethod: "cod",
+    });
     sendSuccess(res, { order }, 201);
   } catch (err) {
     sendError(res, err.message, err.statusCode || 500);
@@ -170,17 +68,19 @@ export const cancelOrder = asyncHandler(async (req, res) => {
 
   if (!order) return sendError(res, "Order not found", 404);
 
+  if (order.paymentMethod === "card" && order.paymentStatus === "paid") {
+    return sendError(
+      res,
+      "Paid online orders cannot be cancelled online. Please contact support.",
+      400
+    );
+  }
+
   if (!["placed", "confirmed"].includes(order.orderStatus)) {
     return sendError(res, "Order cannot be cancelled at this stage");
   }
 
-  for (const item of order.items) {
-    const product = await Product.findById(item.product);
-    if (!product) continue;
-    const variant = findVariant(product, item.variantSku);
-    if (variant) variant.stock += item.quantity;
-    await product.save();
-  }
+  await restoreOrderStock(order);
 
   order.orderStatus = "cancelled";
   order.cancelledAt = new Date();
@@ -189,6 +89,10 @@ export const cancelOrder = asyncHandler(async (req, res) => {
     status: "cancelled",
     note: order.cancelReason,
   });
+
+  if (order.paymentMethod === "card" && order.paymentStatus === "pending") {
+    order.paymentStatus = "failed";
+  }
 
   await restoreCouponOnCancel(order);
   await order.save();
@@ -277,6 +181,14 @@ export const updateSellerOrderStatus = asyncHandler(async (req, res) => {
 
   if (order.orderStatus === "cancelled" || order.orderStatus === "returned") {
     return sendError(res, "Cannot update a cancelled or returned order");
+  }
+
+  if (
+    order.paymentMethod === "card" &&
+    order.paymentStatus !== "paid" &&
+    status !== "cancelled"
+  ) {
+    return sendError(res, "Cannot fulfill an order with unpaid online payment", 400);
   }
 
   order.orderStatus = status;
