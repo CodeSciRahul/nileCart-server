@@ -1,3 +1,5 @@
+import jwt from "jsonwebtoken";
+import { appConfig } from "../config/index.js";
 import * as UserRepository from "../repositories/user.repository.js";
 import * as CartRepository from "../repositories/cart.repository.js";
 import * as WishlistRepository from "../repositories/wishlist.repository.js";
@@ -31,6 +33,7 @@ import {
   sendSellerVerificationOtp,
   sendCustomerLoginOtp,
   sendDashboardLoginOtp,
+  sendPasswordResetOtp,
 } from "../services/email.service.js";
 import { issueAuthToken } from "../utils/helpers/authCookieHelpers.js";
 import { createError } from "../utils/AppError.js";
@@ -124,6 +127,82 @@ const createSellerUser = async ({
   }
 
   return UserRepository.create(userData);
+};
+
+/**
+ * Check whether an account exists and whether it has a password configured.
+ * Also performs role authorization checks if role is supplied.
+ */
+export const lookupAuthMethods = async ({ email, role }) => {
+  if (!email) throw createError("Email is required", 400);
+  console.log("look hit")
+
+  let normalizedEmail;
+  try {
+    normalizedEmail = assertValidEmail(email);
+  } catch (err) {
+    throw createError(err.message, err.statusCode || 400);
+  }
+
+  const user = await UserRepository.findByEmailWithPassword(normalizedEmail);
+
+  if (!user) {
+    if (role === "admin") {
+      throw createError("No admin account found for this email.", 404);
+    }
+
+    return {
+      exists: false,
+      hasPassword: false,
+      role: null,
+      isVerified: false,
+      email: normalizedEmail,
+    };
+  }
+
+  if (role) {
+    const targetRole = String(role).toLowerCase();
+    if (targetRole === "admin" && user.role !== "admin") {
+      throw createError("This account is not an admin account.", 403);
+    }
+
+    if (targetRole === "seller") {
+      if (user.role === "admin") {
+        throw createError("This account is an admin account. Please use admin login.", 403);
+      }
+      if (user.role === "customer") {
+        const sellerProfile = await loadSellerProfile(user._id);
+        if (!sellerProfile) {
+          throw createError(CUSTOMER_ACCOUNT_MESSAGE, 403);
+        }
+      }
+    }
+
+    if (targetRole === "customer") {
+      if (user.role === "admin") {
+        throw createError(
+          "This email is registered as an admin account. Please use the admin dashboard to sign in.",
+          403
+        );
+      }
+      if (user.role === "seller") {
+        throw createError(
+          "This email is registered as a seller account. Please use the seller dashboard to sign in.",
+          403
+        );
+      }
+    }
+  }
+
+  const hasPassword = Boolean(user.hasPassword || user.passwordHash);
+
+  return {
+    exists: true,
+    hasPassword,
+    role: user.role,
+    isVerified: Boolean(user.isVerified),
+    email: user.email,
+  };
 };
 
 /** Customer storefront — send email OTP for unified login/signup */
@@ -280,6 +359,8 @@ export const login = async ({ token, email, password }) => {
     }
 
     user = await createCustomerUser(assertValidEmail(claims.email));
+  } else {
+    assertCustomerAuthEligible(user);
   }
 
   return buildAuthPayload(user);
@@ -314,7 +395,7 @@ export const loginSeller = async ({ token, email, password }) => {
   } else {
     user = await assertCanAccessSellerAuth(user);
 
-    if (password) {
+    if (password && !claims._user) {
       const userWithPassword = await UserRepository.findByEmailWithPassword(normalizedEmail);
       if (userWithPassword) {
         await verifyUserPassword(userWithPassword, password);
@@ -346,7 +427,7 @@ export const loginAdmin = async ({ token, email, password, mobileNumber }) => {
     );
   }
 
-  if (password) {
+  if (password && !claims._user) {
     const userWithPassword = await UserRepository.findByEmailWithPassword(user.email);
     if (userWithPassword) {
       await verifyUserPassword(userWithPassword, password);
@@ -422,6 +503,259 @@ export const deleteAccount = async (user) => {
   await user.save();
 
   return { message: "Account deleted successfully", clearCookie: true };
+};
+
+/**
+ * Set initial password for users who registered via OTP and do not yet have a password.
+ */
+export const setPassword = async (user, { password, confirmPassword }) => {
+  if (!password) {
+    throw createError("Password is required.", 400);
+  }
+
+  if (confirmPassword !== undefined && password !== confirmPassword) {
+    throw createError("Passwords do not match.", 400);
+  }
+
+  assertValidPassword(password);
+
+  const userWithPassword = await UserRepository.findByIdWithPassword(user._id);
+  if (!userWithPassword) {
+    throw createError("User not found.", 404);
+  }
+
+  if (userWithPassword.passwordHash) {
+    throw createError(
+      "A password has already been set for this account. Please use Change Password.",
+      400
+    );
+  }
+
+  const passwordHash = await hashPassword(password);
+  userWithPassword.passwordHash = passwordHash;
+  userWithPassword.hasPassword = true;
+  userWithPassword.authProvider = userWithPassword.authProvider || AUTH_PROVIDERS.PASSWORD;
+  await userWithPassword.save();
+
+  return {
+    success: true,
+    message: "Password set successfully.",
+    hasPassword: true,
+  };
+};
+
+/**
+ * Securely change password for authenticated users who already have a password configured.
+ * If user hasn't set one yet, allows setting new password directly.
+ */
+export const changePassword = async (
+  user,
+  { currentPassword, newPassword, confirmPassword }
+) => {
+  if (!newPassword) {
+    throw createError("New password is required.", 400);
+  }
+
+  if (confirmPassword !== undefined && newPassword !== confirmPassword) {
+    throw createError("Passwords do not match.", 400);
+  }
+
+  assertValidPassword(newPassword);
+
+  const userWithPassword = await UserRepository.findByIdWithPassword(user._id);
+  if (!userWithPassword) {
+    throw createError("User not found.", 404);
+  }
+
+  // If no password was previously configured, allow setting it without currentPassword
+  if (!userWithPassword.passwordHash) {
+    const passwordHash = await hashPassword(newPassword);
+    userWithPassword.passwordHash = passwordHash;
+    userWithPassword.hasPassword = true;
+    userWithPassword.authProvider = userWithPassword.authProvider || AUTH_PROVIDERS.PASSWORD;
+    await userWithPassword.save();
+
+    return {
+      success: true,
+      message: "Password set successfully.",
+      hasPassword: true,
+    };
+  }
+
+  if (!currentPassword) {
+    throw createError("Current password is required.", 400);
+  }
+
+  await verifyUserPassword(userWithPassword, currentPassword);
+
+  if (currentPassword === newPassword) {
+    throw createError("New password must be different from current password.", 400);
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  userWithPassword.passwordHash = passwordHash;
+  userWithPassword.hasPassword = true;
+  await userWithPassword.save();
+
+  return {
+    success: true,
+    message: "Password changed successfully.",
+    hasPassword: true,
+  };
+};
+
+/**
+ * Send OTP for forgot password verification.
+ */
+export const sendForgotPasswordOtp = async ({ email, role }) => {
+  if (!email) throw createError("Email is required.", 400);
+
+  let normalizedEmail;
+  try {
+    normalizedEmail = assertValidEmail(email);
+  } catch (err) {
+    throw createError(err.message, err.statusCode || 400);
+  }
+
+  const user = await UserRepository.findByEmail(normalizedEmail);
+
+  if (!user) {
+    throw createError("No account found with this email address.", 404);
+  }
+
+  if (role) {
+    const targetRole = String(role).toLowerCase();
+    if (targetRole === "admin" && user.role !== "admin") {
+      throw createError("This account is not an admin account.", 403);
+    }
+    if (targetRole === "seller" && user.role !== "seller") {
+      throw createError("This account is not a seller account.", 403);
+    }
+  }
+
+  const otp = await saveEmailOtp(normalizedEmail, OTP_PURPOSES.PASSWORD_RESET);
+  await sendPasswordResetOtp(normalizedEmail, otp);
+
+  return {
+    success: true,
+    message: OTP_SENT_MESSAGE,
+    email: normalizedEmail,
+    expiresIn: getOtpExpirySeconds(),
+  };
+};
+
+/**
+ * Verify OTP for forgot password and issue short-lived password reset token.
+ */
+export const verifyForgotPasswordOtp = async ({ email, otp }) => {
+  if (!email || !otp) {
+    throw createError("Email and verification code are required.", 400);
+  }
+
+  let normalizedEmail;
+  try {
+    normalizedEmail = assertValidEmail(email);
+  } catch (err) {
+    throw createError(err.message, err.statusCode || 400);
+  }
+
+  const code = String(otp).trim();
+  if (!regex.OTP_SIX_DIGIT.test(code)) {
+    throw createError("Verification code must be a 6-digit number.", 400);
+  }
+
+  await verifyEmailOtp(normalizedEmail, code, OTP_PURPOSES.PASSWORD_RESET);
+
+  const user = await UserRepository.findByEmail(normalizedEmail);
+  if (!user) {
+    throw createError("User not found.", 404);
+  }
+
+  const resetToken = jwt.sign(
+    {
+      type: "password_reset",
+      userId: String(user._id),
+      email: normalizedEmail,
+    },
+    appConfig.jwt.secret,
+    { expiresIn: "15m" }
+  );
+
+  return {
+    success: true,
+    resetToken,
+    message: "Verification code accepted. Please set your new password.",
+  };
+};
+
+/**
+ * Reset password using verified resetToken or directly with valid OTP.
+ */
+export const resetPassword = async ({
+  resetToken,
+  email,
+  otp,
+  newPassword,
+  confirmPassword,
+}) => {
+  if (!newPassword) {
+    throw createError("New password is required.", 400);
+  }
+
+  if (confirmPassword !== undefined && newPassword !== confirmPassword) {
+    throw createError("Passwords do not match.", 400);
+  }
+
+  assertValidPassword(newPassword);
+
+  let userId;
+  let targetEmail;
+
+  if (resetToken) {
+    try {
+      const decoded = jwt.verify(resetToken, appConfig.jwt.secret);
+      if (decoded.type !== "password_reset") {
+        throw createError("Invalid password reset token.", 400);
+      }
+      userId = decoded.userId;
+      targetEmail = decoded.email;
+    } catch {
+      throw createError(
+        "Password reset session has expired. Please request a new verification code.",
+        401
+      );
+    }
+  } else if (email && otp) {
+    const normalizedEmail = assertValidEmail(email);
+    const code = String(otp).trim();
+    if (!regex.OTP_SIX_DIGIT.test(code)) {
+      throw createError("Verification code must be a 6-digit number.", 400);
+    }
+    await verifyEmailOtp(normalizedEmail, code, OTP_PURPOSES.PASSWORD_RESET);
+    targetEmail = normalizedEmail;
+  } else {
+    throw createError("Reset token or verification code is required.", 400);
+  }
+
+  const user = userId
+    ? await UserRepository.findByIdWithPassword(userId)
+    : await UserRepository.findByEmailWithPassword(targetEmail);
+
+  if (!user) {
+    throw createError("User not found.", 404);
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  user.passwordHash = passwordHash;
+  user.hasPassword = true;
+  user.failedLoginAttempts = 0;
+  user.lockUntil = null;
+  await user.save();
+
+  return {
+    success: true,
+    message: "Password reset successfully. You can now sign in with your new password.",
+  };
 };
 
 export const sendSellerSignupOtp = async ({ email }) => {

@@ -18,6 +18,9 @@ export const findByEmail = (email) =>
 export const findByEmailWithPassword = (email) =>
   User.findOne({ email: email?.toLowerCase() }).select("+passwordHash");
 
+export const findByIdWithPassword = (id) =>
+  User.findById(id).select("+passwordHash");
+
 export const findByEmailOrMobile = (email, mobileNumber) => {
   const or = [];
   if (email) or.push({ email: email.toLowerCase() });

@@ -35,13 +35,26 @@ const seedAdmin = async () => {
 
   await connectDB();
 
-  const existingAdmin = await User.findOne({ role: "admin" });
+  const passwordHash = await hashPassword(password);
+
+  const existingAdmin = await User.findOne({ role: "admin" }).select("+passwordHash");
   if (existingAdmin) {
-    console.error(
-      `Error: An admin already exists (${existingAdmin.email}). Only one admin is allowed.`
-    );
+    existingAdmin.passwordHash = passwordHash;
+    existingAdmin.hasPassword = true;
+    existingAdmin.isVerified = true;
+    existingAdmin.isActive = true;
+    if (name) existingAdmin.name = name;
+    await existingAdmin.save();
+
+    console.log("\nAdmin updated successfully:");
+    console.log(`  Email:      ${existingAdmin.email}`);
+    console.log(`  Name:       ${existingAdmin.name}`);
+    console.log(`  MongoDB ID: ${existingAdmin._id}`);
+    console.log(`  hasPassword: true`);
+    console.log("\nSign in via the dashboard admin tab using email and password.");
+
     await mongoose.disconnect();
-    process.exit(1);
+    return;
   }
 
   const existingUser = await User.findOne({ email });
@@ -53,8 +66,6 @@ const seedAdmin = async () => {
     process.exit(1);
   }
 
-  const passwordHash = await hashPassword(password);
-
   const mongoUser = await User.create({
     firebaseUid: generateAuthUid(),
     email,
@@ -63,6 +74,7 @@ const seedAdmin = async () => {
     isVerified: true,
     isActive: true,
     passwordHash,
+    hasPassword: true,
     authProvider: "password",
   });
 

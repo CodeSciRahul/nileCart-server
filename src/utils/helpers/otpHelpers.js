@@ -8,6 +8,7 @@ export const OTP_PURPOSES = {
   CUSTOMER_LOGIN: "customer_login",
   SELLER_LOGIN: "seller_login",
   ADMIN_LOGIN: "admin_login",
+  PASSWORD_RESET: "password_reset",
 };
 
 const OTP_EXPIRY_MINUTES = 10;
