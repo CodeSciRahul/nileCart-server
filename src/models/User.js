@@ -12,6 +12,18 @@ const userSchema = new mongoose.Schema(
       type: String,
       select: false,
     },
+    hasPassword: {
+      type: Boolean,
+      default: false,
+    },
+    failedLoginAttempts: {
+      type: Number,
+      default: 0,
+    },
+    lockUntil: {
+      type: Date,
+      default: null,
+    },
     authProvider: {
       type: String,
       enum: ["password", "google.com", "apple.com"],
@@ -59,6 +71,12 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+userSchema.pre("save", function () {
+  if (this.isModified("passwordHash")) {
+    this.hasPassword = Boolean(this.passwordHash);
+  }
+});
 
 const User = mongoose.model("User", userSchema);
 export default User;

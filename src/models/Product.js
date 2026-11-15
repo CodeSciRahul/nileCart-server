@@ -51,7 +51,7 @@ const productSchema = new mongoose.Schema(
     tags: [String],
     gender: {
       type: String,
-      enum: ["Women", "Men"],
+      enum: ["Women", "Men", "Unisex"],
       default: "Women",
     },
     discountPercent: {

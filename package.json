@@ -9,6 +9,7 @@
     "dev": "node --watch index.js",
     "seed": "node scripts/seed.js",
     "seed:admin": "node scripts/seedAdmin.js",
+    "test": "NODE_ENV=test node --test tests/auth.test.js",
     "preview:emails:seller": "node scripts/previewSellerEmails.mjs"
   },
   "keywords": [],

@@ -17,6 +17,7 @@ import {
 const SELLER_OTP_SUBJECT = "Your NileCart seller verification code";
 const CUSTOMER_OTP_SUBJECT = "Your NileCart login code";
 const DASHBOARD_OTP_SUBJECT = "Your NileCart dashboard login code";
+const PASSWORD_RESET_OTP_SUBJECT = "Your NileCart password reset code";
 
 const buildSellerOtpHtml = (otp) => `
   <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
@@ -42,6 +43,15 @@ const buildDashboardOtpHtml = (otp) => `
     <p>Use this verification code to continue:</p>
     <p style="font-size: 32px; font-weight: bold; letter-spacing: 6px; margin: 24px 0;">${otp}</p>
     <p style="color: #666;">This code expires in 10 minutes. If you did not request this, you can ignore this email.</p>
+  </div>
+`;
+
+const buildPasswordResetOtpHtml = (otp) => `
+  <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+    <h2>Reset your password</h2>
+    <p>Use this verification code to reset your NileCart password:</p>
+    <p style="font-size: 32px; font-weight: bold; letter-spacing: 6px; margin: 24px 0;">${otp}</p>
+    <p style="color: #666;">This code expires in 10 minutes. If you did not request this password reset, please secure your account immediately or ignore this email.</p>
   </div>
 `;
 
@@ -76,6 +86,10 @@ export const sendEmail = async ({
     from ||
     appConfig.email?.defaultFrom ||
     appConfig.resend.fromEmail;
+
+  if (process.env.NODE_ENV === "test") {
+    return { sent: true, id: "test-email-id", skipped: true };
+  }
 
   if (resend && fromAddress) {
     const payload = {
@@ -164,6 +178,13 @@ export const sendDashboardLoginOtp = async (email, otp) =>
     subject: DASHBOARD_OTP_SUBJECT,
     buildHtml: buildDashboardOtpHtml,
     devLabel: "Dashboard login",
+  });
+
+export const sendPasswordResetOtp = async (email, otp) =>
+  sendOtpEmail(email, otp, {
+    subject: PASSWORD_RESET_OTP_SUBJECT,
+    buildHtml: buildPasswordResetOtpHtml,
+    devLabel: "Password reset",
   });
 
 /**

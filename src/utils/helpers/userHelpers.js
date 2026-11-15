@@ -21,6 +21,7 @@ export const formatUserProfile = (user, seller = null) => ({
   role: user.role,
   isActive: user.isActive,
   isVerified: user.isVerified,
+  hasPassword: Boolean(user.hasPassword || user.passwordHash),
   seller: seller
     ? {
         _id: seller._id,
