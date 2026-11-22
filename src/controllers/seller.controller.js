@@ -19,7 +19,7 @@ export const getSellerBySlug = serviceHandler((req) =>
 );
 
 export const listSellers = serviceHandler((req) =>
-  SellerService.listSellers(req.query.status)
+  SellerService.listSellers(req.query.status, req.query)
 );
 
 export const approveSeller = serviceHandler((req) =>

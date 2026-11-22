@@ -239,15 +239,35 @@ export const getSellerBySlug = async (slug) => {
   return { seller: formatSellerForPublic(seller) };
 };
 
-export const listSellers = async (status) => {
+export const listSellers = async (status, query = {}) => {
   const filter = {};
   if (status) filter.approvalStatus = status;
 
-  const sellers = await SellerRepository.find(filter)
+  const page = Math.max(1, parseInt(query.page, 10) || 1);
+  const limit = Math.min(100, parseInt(query.limit, 10) || 10);
+  const skip = (page - 1) * limit;
+
+  const total = await SellerRepository.countDocuments(filter);
+
+  let queryBuilder = SellerRepository.find(filter)
     .populate("user", "name email mobileNumber role")
     .sort("-createdAt");
 
-  return { sellers };
+  if (query.page || query.limit) {
+    queryBuilder = queryBuilder.skip(skip).limit(limit);
+  }
+
+  const sellers = await queryBuilder;
+
+  return {
+    sellers,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit) || 1,
+    },
+  };
 };
 
 export const approveSeller = async (sellerId, { commissionRate }) => {

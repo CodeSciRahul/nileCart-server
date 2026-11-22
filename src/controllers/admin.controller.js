@@ -8,7 +8,7 @@ export const getSellerStats = serviceHandler((req) =>
 );
 
 export const listUsers = serviceHandler((req) =>
-  AdminService.listUsers(req.query.role)
+  AdminService.listUsers(req.query.role, req.query)
 );
 
 export const updateUserStatus = serviceHandler((req) =>

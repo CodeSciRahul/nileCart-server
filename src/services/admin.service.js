@@ -60,15 +60,35 @@ export const getSellerStats = async (sellerId) => {
   };
 };
 
-export const listUsers = async (role) => {
+export const listUsers = async (role, query = {}) => {
   const filter = {};
   if (role) filter.role = role;
 
-  const users = await UserRepository.find(filter)
+  const page = Math.max(1, parseInt(query.page, 10) || 1);
+  const limit = Math.min(100, parseInt(query.limit, 10) || 10);
+  const skip = (page - 1) * limit;
+
+  const total = await UserRepository.countDocuments(filter);
+
+  let queryBuilder = UserRepository.find(filter)
     .select("name email mobileNumber role isActive createdAt")
     .sort("-createdAt");
 
-  return { users };
+  if (query.page || query.limit) {
+    queryBuilder = queryBuilder.skip(skip).limit(limit);
+  }
+
+  const users = await queryBuilder;
+
+  return {
+    users,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit) || 1,
+    },
+  };
 };
 
 export const updateUserStatus = async (userId, isActive) => {

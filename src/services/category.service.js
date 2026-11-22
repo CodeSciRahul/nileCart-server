@@ -62,6 +62,23 @@ const collectShopFacets = (products) => {
 };
 
 const resolveCategoryShopScope = async (slug) => {
+  if (slug === "all" || slug === "all-products") {
+    const children = await CategoryRepository.find({ parent: null, isActive: true })
+      .sort({ displayOrder: 1, name: 1 })
+      .select("name slug image description displayOrder showInNav");
+
+    return {
+      category: {
+        _id: "all",
+        name: "All Products",
+        slug,
+        description: "Explore all products",
+      },
+      children,
+      filter: { isActive: true },
+    };
+  }
+
   const category = await CategoryRepository.findOne({ slug, isActive: true }).populate(
     "parent",
     "name slug"
@@ -113,6 +130,12 @@ const applyShopQueryFilters = async (baseFilter, query) => {
 
   if (isOnSale === "true") filter.isOnSale = true;
   if (isTrending === "true") filter.isTrending = true;
+
+  if (query.minPrice || query.maxPrice) {
+    filter["variants.price"] = {};
+    if (query.minPrice) filter["variants.price"].$gte = Number(query.minPrice);
+    if (query.maxPrice) filter["variants.price"].$lte = Number(query.maxPrice);
+  }
 
   return {
     filter,
@@ -219,7 +242,25 @@ export const getCategoryBySlug = async (slug) => {
 
 export const getCategoryShop = async (slug, query) => {
   const scope = await resolveCategoryShopScope(slug);
-  if (!scope) throw createError("Category not found", 404);
+  if (!scope) {
+    return {
+      category: {
+        _id: slug,
+        name: slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+        slug,
+        description: "",
+      },
+      children: [],
+      facets: {
+        brands: [],
+        sizes: [],
+        colors: [],
+        priceRange: { min: 0, max: 0 },
+      },
+      products: [],
+      pagination: { page: 1, pages: 1, total: 0 },
+    };
+  }
 
   const { category, children, filter: baseFilter } = scope;
   const { filter, minPrice, maxPrice } = await applyShopQueryFilters(baseFilter, query);
@@ -235,18 +276,16 @@ export const getCategoryShop = async (slug, query) => {
 
   const facets = collectShopFacets(facetProducts);
 
-  let products = await ProductRepository.find(filter)
-    .populate("category", "name slug")
-    .populate("brand", "name slug")
-    .populate("seller", "storeName storeSlug logo")
-    .sort(sort);
-
-  if (minPrice || maxPrice) {
-    products = products.filter((product) => matchesPriceRange(product, minPrice, maxPrice));
-  }
-
-  const total = products.length;
-  const paginatedProducts = products.slice(skip, skip + limit);
+  const [paginatedProducts, total] = await Promise.all([
+    ProductRepository.find(filter)
+      .populate("category", "name slug")
+      .populate("brand", "name slug")
+      .populate("seller", "storeName storeSlug logo")
+      .sort(sort)
+      .skip(skip)
+      .limit(limit),
+    ProductRepository.countDocuments(filter),
+  ]);
 
   return {
     category: formatCategoryForPublic(category),
