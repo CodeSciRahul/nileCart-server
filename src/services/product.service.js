@@ -35,7 +35,18 @@ const buildProductFilter = async (query) => {
   }
 
   if (brand) filter.brand = brand;
-  if (gender) filter.gender = gender;
+  if (gender) {
+    const gLower = String(gender).toLowerCase();
+    if (gLower === "men") {
+      filter.gender = { $in: ["Men", "Unisex"] };
+    } else if (gLower === "women") {
+      filter.gender = { $in: ["Women", "Unisex"] };
+    } else if (gLower === "unisex") {
+      filter.gender = "Unisex";
+    } else {
+      filter.gender = new RegExp(`^${gender}$`, "i");
+    }
+  }
   if (seller) filter.seller = seller;
   if (isTrending === "true") filter.isTrending = true;
   if (isNewArrival === "true") filter.isNewArrival = true;
@@ -43,6 +54,12 @@ const buildProductFilter = async (query) => {
 
   if (search) {
     filter.$text = { $search: search };
+  }
+
+  if (minPrice || maxPrice) {
+    filter["variants.price"] = {};
+    if (minPrice) filter["variants.price"].$gte = Number(minPrice);
+    if (maxPrice) filter["variants.price"].$lte = Number(maxPrice);
   }
 
   return { filter, minPrice, maxPrice };
@@ -54,25 +71,17 @@ export const getProducts = async (query) => {
   const skip = (page - 1) * limit;
   const sort = query.sort || "-createdAt";
 
-  const { filter, minPrice, maxPrice } = await buildProductFilter(query);
+  const { filter } = await buildProductFilter(query);
 
-  let products = await ProductRepository.find(filter)
-    .populate("category", "name slug")
-    .populate("seller", "storeName storeSlug logo")
-    .sort(sort)
-    .skip(skip)
-    .limit(limit);
-
-  if (minPrice || maxPrice) {
-    products = products.filter((p) => {
-      const price = p.variants[0]?.price ?? 0;
-      if (minPrice && price < Number(minPrice)) return false;
-      if (maxPrice && price > Number(maxPrice)) return false;
-      return true;
-    });
-  }
-
-  const total = await ProductRepository.countDocuments(filter);
+  const [products, total] = await Promise.all([
+    ProductRepository.find(filter)
+      .populate("category", "name slug")
+      .populate("seller", "storeName storeSlug logo")
+      .sort(sort)
+      .skip(skip)
+      .limit(limit),
+    ProductRepository.countDocuments(filter),
+  ]);
 
   return {
     products: products.map(formatProductCard),
@@ -80,7 +89,7 @@ export const getProducts = async (query) => {
       page,
       limit,
       total,
-      pages: Math.ceil(total / limit),
+      pages: Math.ceil(total / limit) || 1,
     },
   };
 };
@@ -114,18 +123,38 @@ export const getProductBySlug = async (slug) => {
 export const searchProducts = async (query) =>
   getProducts({ ...query, search: query.q || query.search });
 
-export const getMyProducts = async (sellerId, query) => {
+export const getMyProducts = async (sellerId, query = {}) => {
   const filter = { seller: sellerId };
 
-  if (query.isActive !== undefined) {
+  if (query.isActive !== undefined && query.isActive !== "") {
     filter.isActive = query.isActive === "true";
   }
 
-  const products = await ProductRepository.find(filter)
+  const page = Math.max(1, parseInt(query.page, 10) || 1);
+  const limit = Math.min(100, parseInt(query.limit, 10) || (query.page ? 10 : 50));
+  const skip = (page - 1) * limit;
+
+  const total = await ProductRepository.countDocuments(filter);
+
+  let queryBuilder = ProductRepository.find(filter)
     .populate("category", "name slug")
     .sort("-createdAt");
 
-  return { products: products.map(formatProductForDashboard) };
+  if (query.page || query.limit) {
+    queryBuilder = queryBuilder.skip(skip).limit(limit);
+  }
+
+  const products = await queryBuilder;
+
+  return {
+    products: products.map(formatProductForDashboard),
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit) || 1,
+    },
+  };
 };
 
 export const createProduct = async (user, seller, body) => {

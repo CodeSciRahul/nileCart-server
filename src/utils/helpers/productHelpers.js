@@ -13,8 +13,6 @@ export const getProductListPrice = (product) => {
 
 export const formatProductCard = (product) => {
   const { price, mrp, discountPercent } = getProductListPrice(product);
-  console.log("product", product?.variants)
-  console.log("variants", product?.variants?.map((variant) => variant.images))
   return {
     _id: product._id,
     title: product?.title,
@@ -33,6 +31,8 @@ export const formatProductCard = (product) => {
     isTrending: product?.isTrending,
     isNewArrival: product?.isNewArrival,
     isOnSale: product?.isOnSale,
+    gender: product?.gender || "Women",
+    tags: product?.tags || [],
   };
 };
 

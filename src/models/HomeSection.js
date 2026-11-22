@@ -2,6 +2,20 @@ import mongoose from "mongoose";
 import { storedImageSchema } from "./schemas/storedImage.schema.js";
 import { HOME_SECTION_TYPES, PRODUCT_SOURCES } from "../constants/homeSections.js";
 
+const homeSectionItemSchema = new mongoose.Schema(
+  {
+    title: { type: String, default: "" },
+    subtitle: { type: String, default: "" },
+    caption: { type: String, default: "" },
+    price: { type: String, default: "" },
+    kicker: { type: String, default: "" },
+    image: storedImageSchema,
+    link: { type: String, default: "" },
+    displayOrder: { type: Number, default: 0 },
+  },
+  { _id: true }
+);
+
 const homeSectionConfigSchema = new mongoose.Schema(
   {
     source: { type: String, default: "all_active" },
@@ -61,6 +75,7 @@ const homeSectionSchema = new mongoose.Schema(
     ctaText: String,
     ctaLink: String,
     image: storedImageSchema,
+    items: [homeSectionItemSchema],
     config: { type: homeSectionConfigSchema, default: () => ({}) },
   },
   { timestamps: true }
