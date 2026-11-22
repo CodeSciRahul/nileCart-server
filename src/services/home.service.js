@@ -283,29 +283,36 @@ const resolveSectionData = async (section, audience = {}) => {
   }
 };
 
-const isSectionRenderable = (section, data) => {
+const isSectionRenderable = (section, data = {}) => {
+  if (section.isActive === false) return false;
+
   switch (section.type) {
     case "hero_banner":
-      return Boolean(data.banners?.length);
+      return Boolean(data.banners?.length || section.image);
     case "announcement_bar":
-      return Boolean(data.announcements?.length);
+      return Boolean(data.announcements?.length || section.title);
+    case "special_offers":
+    case "trending_cards":
+      return Boolean((section.items && section.items.length > 0) || section.title || section.image);
     case "promotional_campaign":
     case "seasonal_campaign":
     case "custom_marketing":
+    case "editorial_banner":
+      return Boolean(data.campaign || section.image || section.title);
     case "popup_campaign":
       return Boolean(data.campaign);
     case "flash_sale":
-      return Boolean(data.flashSale?.products?.length);
+      return Boolean(data.flashSale?.products?.length || section.title);
     case "category_highlights":
-      return Boolean(data.categories?.length);
+      return Boolean(data.categories?.length || section.title);
     case "brand_showcase":
-      return Boolean(data.brands?.length);
+      return Boolean(data.brands?.length || section.title);
     case "featured_collection":
-      return Boolean(data.collection?.products?.length);
+      return Boolean(data.collection?.products?.length || section.title);
     case "recommended_products":
-      return Boolean(data.products?.length);
+      return Boolean(data.products?.length || section.title);
     default:
-      return false;
+      return Boolean(section.title || section.image || (section.items && section.items.length > 0));
   }
 };
 
