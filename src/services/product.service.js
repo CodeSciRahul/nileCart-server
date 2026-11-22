@@ -35,7 +35,18 @@ const buildProductFilter = async (query) => {
   }
 
   if (brand) filter.brand = brand;
-  if (gender) filter.gender = gender;
+  if (gender) {
+    const gLower = String(gender).toLowerCase();
+    if (gLower === "men") {
+      filter.gender = { $in: ["Men", "Unisex"] };
+    } else if (gLower === "women") {
+      filter.gender = { $in: ["Women", "Unisex"] };
+    } else if (gLower === "unisex") {
+      filter.gender = "Unisex";
+    } else {
+      filter.gender = new RegExp(`^${gender}$`, "i");
+    }
+  }
   if (seller) filter.seller = seller;
   if (isTrending === "true") filter.isTrending = true;
   if (isNewArrival === "true") filter.isNewArrival = true;
