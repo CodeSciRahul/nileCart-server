@@ -9,7 +9,7 @@ import { BANNER_TYPES } from "../constants/marketing.js";
 
 const bannerSchema = new mongoose.Schema(
   {
-    title: { type: String, required: true },
+    title: { type: String, default: "" },
     subtitle: String,
     description: String,
     type: {
