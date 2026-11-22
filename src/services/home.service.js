@@ -32,10 +32,12 @@ import { slugify } from "../utils/helpers/userHelpers.js";
 const toPlain = (doc) => (doc?.toObject ? doc.toObject() : doc);
 
 const ensureDefaultSections = async () => {
-  const count = await HomeSectionRepository.countDocuments();
-  if (count > 0) return;
-
-  await HomeSectionRepository.insertMany(DEFAULT_HOME_SECTIONS);
+  for (const s of DEFAULT_HOME_SECTIONS) {
+    const exists = await HomeSectionRepository.findOne({ key: s.key });
+    if (!exists) {
+      await HomeSectionRepository.create(s);
+    }
+  }
 };
 
 const resolveProducts = async ({ productSource, productIds, limit = 8 }) => {
@@ -400,6 +402,18 @@ export const createHomeSection = async (body) => {
     ctaText: body.ctaText,
     ctaLink: body.ctaLink,
     image: normalizeStoredImage(body.image),
+    items: Array.isArray(body.items)
+      ? body.items.map((item) => ({
+          title: item.title || "",
+          subtitle: item.subtitle || "",
+          caption: item.caption || "",
+          price: item.price || "",
+          kicker: item.kicker || "",
+          link: item.link || "",
+          displayOrder: Number(item.displayOrder) || 0,
+          image: normalizeStoredImage(item.image),
+        }))
+      : [],
     config: body.config || {},
   });
 
@@ -444,6 +458,21 @@ export const updateHomeSection = async (id, body) => {
 
   if (body.image !== undefined) {
     section.image = normalizeStoredImage(body.image);
+  }
+
+  if (body.items !== undefined) {
+    section.items = Array.isArray(body.items)
+      ? body.items.map((item) => ({
+          title: item.title || "",
+          subtitle: item.subtitle || "",
+          caption: item.caption || "",
+          price: item.price || "",
+          kicker: item.kicker || "",
+          link: item.link || "",
+          displayOrder: Number(item.displayOrder) || 0,
+          image: normalizeStoredImage(item.image),
+        }))
+      : [];
   }
 
   if (body.config !== undefined) {

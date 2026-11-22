@@ -345,6 +345,19 @@ export const formatHomeSectionForDashboard = (section) => {
   return {
     ...obj,
     image: normalizeStoredImage(obj.image),
+    items: Array.isArray(obj.items)
+      ? obj.items.map((item) => ({
+          _id: item._id,
+          title: item.title || "",
+          subtitle: item.subtitle || "",
+          caption: item.caption || "",
+          price: item.price || "",
+          kicker: item.kicker || "",
+          link: item.link || "",
+          displayOrder: item.displayOrder ?? 0,
+          image: normalizeStoredImage(item.image),
+        }))
+      : [],
   };
 };
 
@@ -364,6 +377,19 @@ export const formatHomeSectionForPublic = (section) => {
     ctaText: obj.ctaText,
     ctaLink: obj.ctaLink,
     image: getImageUrl(obj.image),
+    items: Array.isArray(obj.items)
+      ? obj.items.map((item) => ({
+          _id: item._id,
+          title: item.title || "",
+          subtitle: item.subtitle || "",
+          caption: item.caption || "",
+          price: item.price || "",
+          kicker: item.kicker || "",
+          link: item.link || "",
+          displayOrder: item.displayOrder ?? 0,
+          image: getImageUrl(item.image),
+        }))
+      : [],
     config: {
       layout: obj.config?.layout || "grid",
       limit: obj.config?.limit || 8,
